@@ -152,8 +152,6 @@ export default function App() {
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
 
-  const [somTimer, setSomTimer] = useState(localStorage.getItem('evotrain_som_timer') || 'padrao');
-
   const [timerAtivo, setTimerAtivo] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(0);
   const [timerInfo, setTimerInfo] = useState('Descanso');
@@ -248,10 +246,6 @@ export default function App() {
   }, [treinos]);
 
   useEffect(() => {
-    localStorage.setItem('evotrain_som_timer', somTimer);
-  }, [somTimer]);
-
-  useEffect(() => {
     if (!timerAtivo) return;
 
     if (tempoRestante <= 0) {
@@ -260,14 +254,14 @@ export default function App() {
       try {
         tocarSomProfissional();
       } catch (error) {
-        console.warn('Erro ao tocar som do timer:', error);
+        console.warn('Erro ao tocar som:', error);
       }
 
-      // No celular/PWA algumas notificações podem derrubar a tela.
-      // Mantemos a vibração e evitamos abrir notificação direta ao finalizar.
-      if (navigator.vibrate) {
-        navigator.vibrate([250, 120, 250]);
-      }
+      try {
+        if ('vibrate' in navigator) {
+          navigator.vibrate([250, 120, 250]);
+        }
+      } catch {}
 
       return;
     }
@@ -1089,55 +1083,19 @@ export default function App() {
   }
 
   function tocarSomProfissional() {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const gain = ctx.createGain();
-      gain.connect(ctx.destination);
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-      function beep(frequencia: number, inicio: number, duracao: number, volume = 0.28) {
-        const oscillator = ctx.createOscillator();
-        oscillator.type =
-          somTimer === 'eletronico'
-            ? 'square'
-            : somTimer === 'vitoria'
-            ? 'triangle'
-            : 'sine';
-
-        oscillator.frequency.setValueAtTime(frequencia, ctx.currentTime + inicio);
-        oscillator.connect(gain);
-
-        gain.gain.setValueAtTime(0.001, ctx.currentTime + inicio);
-        gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + inicio + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + inicio + duracao);
-
-        oscillator.start(ctx.currentTime + inicio);
-        oscillator.stop(ctx.currentTime + inicio + duracao + 0.03);
-      }
-
-      if (somTimer === 'sino') {
-        beep(660, 0, 0.35);
-        beep(880, 0.18, 0.45);
-      } else if (somTimer === 'eletronico') {
-        beep(900, 0, 0.16);
-        beep(1200, 0.2, 0.16);
-        beep(900, 0.4, 0.2);
-      } else if (somTimer === 'vitoria') {
-        beep(523, 0, 0.18);
-        beep(659, 0.18, 0.18);
-        beep(784, 0.36, 0.42);
-      } else {
-        beep(880, 0, 0.45);
-      }
-
-      setTimeout(() => {
-        try {
-          ctx.close();
-        } catch {}
-      }, 1200);
-    } catch (error) {
-      console.warn('Áudio não disponível neste dispositivo:', error);
-    }
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.55);
   }
 
   async function moverExercicio(treino: Treino, destinoId: string) {
@@ -2137,11 +2095,7 @@ export default function App() {
           <p style={styles.mobileMuted}>Preferências gerais do aluno.</p>
 
           <label style={styles.label}>Som do timer</label>
-          <select
-            style={styles.input}
-            value={somTimer}
-            onChange={(e) => setSomTimer(e.target.value)}
-          >
+          <select style={styles.input} defaultValue="padrao">
             <option value="padrao">Padrão / Bip</option>
             <option value="sino">Sino</option>
             <option value="eletronico">Eletrônico</option>
