@@ -250,8 +250,19 @@ export default function App() {
 
     if (tempoRestante <= 0) {
       setTimerAtivo(false);
-      tocarSomProfissional();
-      enviarNotificacao('Descanso finalizado', 'Hora da próxima série!');
+
+      try {
+        tocarSomProfissional();
+      } catch (error) {
+        console.warn('Erro ao tocar som:', error);
+      }
+
+      try {
+        if ('vibrate' in navigator) {
+          navigator.vibrate([250, 120, 250]);
+        }
+      } catch {}
+
       return;
     }
 
@@ -1056,14 +1067,6 @@ export default function App() {
     setNotificacoes(permissao);
   }
 
-  function enviarNotificacao(titulo: string, corpo: string) {
-    if (
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'granted'
-    ) {
-      new Notification(titulo, { body: corpo, icon: '/icon-192.png' });
-    }
-  }
 
   function iniciarDescanso(segundos: number, info = 'Descanso') {
     setTimerInfo(info);
