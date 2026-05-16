@@ -24,11 +24,8 @@ import {
 
 import { auth, db } from './firebase';
 
-import PremiumCard from './components/PremiumCard';
 import AlunoHeader from './components/AlunoHeader';
 import StatsCards from './components/StatsCards';
-import ExerciseCard from './components/ExerciseCard';
-import { premiumTheme } from './styles/PremiumTheme';
 
 
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
@@ -2828,6 +2825,7 @@ function transformarLinkVideo(url: string) {
   if (!url) return '';
 
   let link = String(url).trim();
+
   if (!link) return '';
 
   if (link.startsWith('www.')) link = `https://${link}`;
@@ -2841,29 +2839,30 @@ function transformarLinkVideo(url: string) {
     const u = new URL(link);
     const host = u.hostname.replace('www.', '');
 
-    if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
-      let id = '';
-
-      if (u.pathname === '/watch') {
-        id = u.searchParams.get('v') || '';
-      }
-
-      if (u.pathname.startsWith('/shorts/')) {
-        id = u.pathname.split('/shorts/')[1] || '';
-      }
-
-      if (u.pathname.startsWith('/embed/')) {
-        id = u.pathname.split('/embed/')[1] || '';
-      }
+    if (
+      host === 'youtube.com' ||
+      host === 'm.youtube.com' ||
+      host === 'music.youtube.com'
+    ) {
+      let id =
+        u.searchParams.get('v') ||
+        u.pathname.split('/shorts/')[1] ||
+        u.pathname.split('/embed/')[1] ||
+        '';
 
       id = id.split('?')[0].split('&')[0].split('/')[0];
 
-      return id ? `https://www.youtube.com/embed/${id}` : '';
+      return id
+        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
+        : '';
     }
 
     if (host === 'youtu.be') {
       const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
-      return id ? `https://www.youtube.com/embed/${id}` : '';
+
+      return id
+        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
+        : '';
     }
 
     if (host === 'vimeo.com') {
