@@ -155,6 +155,9 @@ export default function App() {
   const [timerAtivo, setTimerAtivo] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(0);
   const [timerInfo, setTimerInfo] = useState('Descanso');
+  const [somTimer, setSomTimer] = useState<'padrao' | 'sino' | 'eletronico' | 'vitoria'>(() => {
+    return (localStorage.getItem('evotrain_som_timer') as any) || 'padrao';
+  });
 
   const [dragExercicioId, setDragExercicioId] = useState('');
   const [exercicioAbertoId, setExercicioAbertoId] = useState('');
@@ -246,16 +249,18 @@ export default function App() {
   }, [treinos]);
 
   useEffect(() => {
+    localStorage.setItem('evotrain_som_timer', somTimer);
+  }, [somTimer]);
+
+  useEffect(() => {
     if (!timerAtivo) return;
 
     if (tempoRestante <= 0) {
       setTimerAtivo(false);
 
-      try {
+      setTimeout(() => {
         tocarSomProfissional();
-      } catch (error) {
-        console.warn('Erro ao tocar som:', error);
-      }
+      }, 100);
 
       try {
         if ('vibrate' in navigator) {
@@ -1074,20 +1079,55 @@ export default function App() {
     setTimerAtivo(true);
   }
 
-  function tocarSomProfissional() {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
+  async function tocarSomProfissional() {
+    try {
+      const AudioCtx =
+        (window as any).AudioContext || (window as any).webkitAudioContext;
 
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.55);
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      const sequencias: Record<typeof somTimer, number[]> = {
+        padrao: [880],
+        sino: [660, 880],
+        eletronico: [440, 660, 880],
+        vitoria: [523, 659, 784, 1046],
+      };
+
+      const notas = sequencias[somTimer] || sequencias.padrao;
+
+      notas.forEach((freq, index) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        oscillator.type = somTimer === 'eletronico' ? 'square' : 'sine';
+        oscillator.frequency.value = freq;
+
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+
+        const inicio = ctx.currentTime + index * 0.18;
+        const fim = inicio + 0.15;
+
+        gain.gain.setValueAtTime(0.001, inicio);
+        gain.gain.exponentialRampToValueAtTime(0.25, inicio + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, fim);
+
+        oscillator.start(inicio);
+        oscillator.stop(fim);
+      });
+
+      setTimeout(() => {
+        ctx.close().catch(() => {});
+      }, notas.length * 250 + 500);
+    } catch (error) {
+      console.warn('Erro ao tocar som:', error);
+    }
   }
 
   async function moverExercicio(treino: Treino, destinoId: string) {
@@ -2087,7 +2127,13 @@ export default function App() {
           <p style={styles.mobileMuted}>Preferências gerais do aluno.</p>
 
           <label style={styles.label}>Som do timer</label>
-          <select style={styles.input} defaultValue="padrao">
+          <select
+            style={styles.input}
+            value={somTimer}
+            onChange={(e) =>
+              setSomTimer(e.target.value as 'padrao' | 'sino' | 'eletronico' | 'vitoria')
+            }
+          >
             <option value="padrao">Padrão / Bip</option>
             <option value="sino">Sino</option>
             <option value="eletronico">Eletrônico</option>
