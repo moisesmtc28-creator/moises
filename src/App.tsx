@@ -27,7 +27,6 @@ import { auth, db } from './firebase';
 import AlunoHeader from './components/AlunoHeader';
 import StatsCards from './components/StatsCards';
 
-
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
 type StatusUsuario = 'pendente' | 'aprovado' | 'bloqueado';
 
@@ -2031,7 +2030,6 @@ export default function App() {
         </Card>
       )}
 
-
       {perfil?.tipo === 'aluno' && abaAtiva === 'inicio' && (
         <div style={styles.mobileHome}>
           <div style={styles.mobileHero}>
@@ -2106,7 +2104,6 @@ export default function App() {
           </p>
         </Card>
       )}
-
 
       {perfil?.tipo === 'aluno' && abaAtiva === 'estatisticas' && (
         <Card>
@@ -2499,7 +2496,6 @@ export default function App() {
   );
 }
 
-
 function MobileExerciseCard({
   ex,
   treino,
@@ -2525,7 +2521,6 @@ function MobileExerciseCard({
     ) || totalSeries;
 
   const descanso = Number(ex.descanso) || 0;
-  const videoEmbed = transformarLinkVideo(ex.video);
   const timerDesteExercicio =
     timerAtivo && String(timerInfo || '').toLowerCase().includes(String(ex.nome || '').toLowerCase());
 
@@ -2613,30 +2608,7 @@ function MobileExerciseCard({
       </div>
 
       <div style={mobileStyles.videoCard}>
-        {videoEmbed ? (
-          String(videoEmbed).toLowerCase().match(/\.(mp4|webm|ogg)(\?|$)/) ? (
-            <video
-              src={videoEmbed}
-              controls
-              playsInline
-              style={mobileStyles.videoFrame}
-            />
-          ) : (
-            <iframe
-              src={videoEmbed}
-              title={`Vídeo - ${ex.nome || 'Exercício'}`}
-              style={mobileStyles.videoFrame}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          )
-        ) : (
-          <div style={mobileStyles.videoEmpty}>
-            <div style={mobileStyles.playCircle}>▶</div>
-            <b>Assistir execução</b>
-            <small>Adicione um link de vídeo para aparecer aqui</small>
-          </div>
-        )}
+        <PlayerVideoSeguro url={ex.video} nome={ex.nome} />
 
         {(perfil?.tipo === 'aluno' || perfil?.tipo === 'professor') && (
           <div style={mobileStyles.videoInputBox}>
@@ -2821,60 +2793,86 @@ function MobileExerciseCard({
   );
 }
 
-function transformarLinkVideo(url: string) {
-  if (!url) return '';
 
-  let link = String(url).trim();
 
-  if (!link) return '';
 
-  if (link.startsWith('www.')) link = `https://${link}`;
-  if (link.startsWith('youtube.com')) link = `https://www.${link}`;
-  if (link.startsWith('m.youtube.com')) link = `https://${link}`;
-  if (link.startsWith('youtu.be')) link = `https://${link}`;
-  if (link.startsWith('ttps://')) link = `h${link}`;
-  if (link.startsWith('ps://')) link = `htt${link}`;
+function PlayerVideoSeguro({ url, nome }: { url: string; nome: string }) {
+  const original = String(url || '').trim();
+  const normalizada = normalizarUrlVideo(original);
+  const lower = normalizada.toLowerCase();
 
-  try {
-    const u = new URL(link);
-    const host = u.hostname.replace('www.', '');
-
-    if (
-      host === 'youtube.com' ||
-      host === 'm.youtube.com' ||
-      host === 'music.youtube.com'
-    ) {
-      let id =
-        u.searchParams.get('v') ||
-        u.pathname.split('/shorts/')[1] ||
-        u.pathname.split('/embed/')[1] ||
-        '';
-
-      id = id.split('?')[0].split('&')[0].split('/')[0];
-
-      return id
-        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
-        : '';
-    }
-
-    if (host === 'youtu.be') {
-      const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
-
-      return id
-        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
-        : '';
-    }
-
-    if (host === 'vimeo.com') {
-      const id = u.pathname.split('/').filter(Boolean)[0];
-      return id ? `https://player.vimeo.com/video/${id}` : '';
-    }
-
-    return link;
-  } catch {
-    return '';
+  if (!normalizada) {
+    return (
+      <div style={mobileStyles.videoEmpty}>
+        <div style={mobileStyles.playCircle}>▶</div>
+        <b>Assistir execução</b>
+        <small>Adicione um link de vídeo para aparecer aqui</small>
+      </div>
+    );
   }
+
+  const isImagem =
+    lower.match(/\.(gif|png|jpg|jpeg|webp)(\?|$)/) ||
+    lower.includes('media.giphy.com') ||
+    lower.includes('giphy.com/media');
+
+  const isVideoDireto = lower.match(/\.(mp4|webm|ogg|mov)(\?|$)/);
+
+  const isEmbedPermitido =
+    lower.includes('youtube.com/embed/') ||
+    lower.includes('youtube-nocookie.com/embed/') ||
+    lower.includes('player.vimeo.com/video/');
+
+  if (isImagem) {
+    return (
+      <img
+        src={normalizada}
+        alt={nome || 'Execução do exercício'}
+        style={mobileStyles.videoFrame}
+      />
+    );
+  }
+
+  if (isVideoDireto) {
+    return (
+      <video
+        src={normalizada}
+        controls
+        playsInline
+        style={mobileStyles.videoFrame}
+      />
+    );
+  }
+
+  if (isEmbedPermitido) {
+    return (
+      <iframe
+        src={normalizada}
+        title={`Vídeo - ${nome || 'Exercício'}`}
+        style={mobileStyles.videoFrame}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    );
+  }
+
+  return (
+    <div style={mobileStyles.videoEmpty}>
+      <div style={mobileStyles.playCircle}>↗</div>
+      <b>Este site bloqueia player interno</b>
+      <small>Use YouTube, Vimeo, GIF direto ou MP4 direto.</small>
+      <a
+        href={normalizada}
+        target="_blank"
+        rel="noreferrer"
+        style={mobileStyles.openVideoLink}
+      >
+        Abrir vídeo
+      </a>
+    </div>
+  );
 }
+
 
 const mobileStyles: any = {
   screenCard: {
@@ -2999,6 +2997,17 @@ const mobileStyles: any = {
     textAlign: 'center',
     color: '#CBD5E1',
     padding: 20,
+  },
+
+  openVideoLink: {
+    marginTop: 10,
+    color: 'white',
+    background: 'linear-gradient(135deg,#7C3AED,#9333EA)',
+    padding: '10px 14px',
+    borderRadius: 12,
+    textDecoration: 'none',
+    fontWeight: 900,
+    display: 'inline-block',
   },
   playCircle: {
     width: 78,
@@ -3233,76 +3242,54 @@ const mobileStyles: any = {
   },
 };
 
-
-
 function normalizarUrlVideo(url: string) {
   if (!url) return '';
 
-  const limpo = String(url).trim();
+  let link = String(url).trim();
+  if (!link) return '';
+
+  if (link.startsWith('www.')) link = `https://${link}`;
+  if (link.startsWith('youtube.com')) link = `https://www.${link}`;
+  if (link.startsWith('m.youtube.com')) link = `https://${link}`;
+  if (link.startsWith('youtu.be')) link = `https://${link}`;
+  if (link.startsWith('ttps://')) link = `h${link}`;
+  if (link.startsWith('ps://')) link = `htt${link}`;
 
   try {
-    const u = new URL(limpo);
+    const u = new URL(link);
+    const host = u.hostname.replace('www.', '');
 
-    if (u.hostname.includes('youtube.com')) {
-      if (u.pathname.includes('/shorts/')) {
-        const id = u.pathname.split('/shorts/')[1]?.split(/[/?&]/)[0];
-        return id ? `https://www.youtube.com/embed/${id}` : limpo;
-      }
+    if (
+      host === 'youtube.com' ||
+      host === 'm.youtube.com' ||
+      host === 'music.youtube.com'
+    ) {
+      let id =
+        u.searchParams.get('v') ||
+        u.pathname.split('/shorts/')[1] ||
+        u.pathname.split('/embed/')[1] ||
+        '';
 
-      const id = u.searchParams.get('v');
-      return id ? `https://www.youtube.com/embed/${id}` : limpo;
+      id = id.split('?')[0].split('&')[0].split('/')[0];
+
+      return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1` : '';
     }
 
-    if (u.hostname.includes('youtu.be')) {
-      const id = u.pathname.replace('/', '').split(/[/?&]/)[0];
-      return id ? `https://www.youtube.com/embed/${id}` : limpo;
+    if (host === 'youtu.be') {
+      const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
+      return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1` : '';
     }
 
-    if (u.hostname.includes('vimeo.com')) {
-      const id = u.pathname.split('/').filter(Boolean)[0];
-      return id ? `https://player.vimeo.com/video/${id}` : limpo;
+    if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+      const id = u.pathname.split('/').filter(Boolean).pop() || '';
+      return id ? `https://player.vimeo.com/video/${id}` : '';
     }
 
-    return limpo;
+    return link;
   } catch {
-    return limpo;
+    return '';
   }
 }
-
-function VideoExercicio({ url }: { url: string }) {
-  const videoUrl = normalizarUrlVideo(url);
-
-  if (!videoUrl) {
-    return (
-      <div style={styles.videoEmpty}>
-        Sem link de vídeo disponível
-      </div>
-    );
-  }
-
-  const isMp4 = videoUrl.toLowerCase().includes('.mp4');
-
-  return (
-    <div style={styles.videoBox}>
-      {isMp4 ? (
-        <video
-          src={videoUrl}
-          controls
-          style={styles.videoFrame}
-        />
-      ) : (
-        <iframe
-          src={videoUrl}
-          title="Vídeo do exercício"
-          style={styles.videoFrame}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        />
-      )}
-    </div>
-  );
-}
-
 
 function MenuItem({ label, icon, ativo, onClick }: any) {
   return (
@@ -3392,60 +3379,6 @@ function ProgressBar({ value }: any) {
       <div style={styles.progressBg}>
         <div style={{ ...styles.progressFill, width: `${value}%` }} />
       </div>
-    </div>
-  );
-}
-
-function GraficoCarga({ historico }: any) {
-  const pontos = (historico || [])
-    .map((h: any) =>
-      Number(
-        String(h.carga)
-          .replace(',', '.')
-          .replace(/[^0-9.]/g, '')
-      )
-    )
-    .filter((n: number) => !isNaN(n));
-
-  if (pontos.length < 2) {
-    return (
-      <p>
-        <small>Gráfico aparece após 2 registros de carga.</small>
-      </p>
-    );
-  }
-
-  const max = Math.max(...pontos);
-  const min = Math.min(...pontos);
-  const range = max - min || 1;
-
-  const coords = pontos
-    .map((p: number, i: number) => {
-      const x = (i / (pontos.length - 1)) * 260;
-      const y = 90 - ((p - min) / range) * 80;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <div style={styles.chartBox}>
-      <b>Evolução de carga</b>
-
-      <svg width="280" height="110" viewBox="0 0 280 110">
-        <polyline
-          fill="none"
-          stroke="#2563eb"
-          strokeWidth="4"
-          points={coords}
-        />
-
-        {pontos.map((p: number, i: number) => {
-          const x = (i / (pontos.length - 1)) * 260;
-          const y = 90 - ((p - min) / range) * 80;
-
-          return <circle key={i} cx={x} cy={y} r="4" fill="#16a34a" />;
-        })}
-      </svg>
     </div>
   );
 }
