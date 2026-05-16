@@ -24,11 +24,8 @@ import {
 
 import { auth, db } from './firebase';
 
-import PremiumCard from './components/PremiumCard';
 import AlunoHeader from './components/AlunoHeader';
 import StatsCards from './components/StatsCards';
-import ExerciseCard from './components/ExerciseCard';
-import { premiumTheme } from './styles/PremiumTheme';
 
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
 type StatusUsuario = 'pendente' | 'aprovado' | 'bloqueado';
@@ -155,6 +152,8 @@ export default function App() {
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
 
+  const [somTimer, setSomTimer] = useState(localStorage.getItem('evotrain_som_timer') || 'padrao');
+
   const [timerAtivo, setTimerAtivo] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(0);
   const [timerInfo, setTimerInfo] = useState('Descanso');
@@ -167,15 +166,7 @@ export default function App() {
     'treinos'
   );
   const [novaSenhaPrimeiroAcesso, setNovaSenhaPrimeiroAcesso] = useState('');
-  const [abaAtiva, setAbaAtiva] = useState<
-    | 'inicio'
-    | 'treinos'
-    | 'estatisticas'
-    | 'avaliacoes'
-    | 'mensagens'
-    | 'configuracoes'
-    | 'perfil'
-  >('inicio');
+  const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'treinos' | 'estatisticas' | 'avaliacoes' | 'mensagens' | 'configuracoes' | 'perfil'>('inicio');
   const [menuLateralAberto, setMenuLateralAberto] = useState(false);
 
   const [configSistema, setConfigSistema] = useState<ConfigSistema>({
@@ -257,12 +248,27 @@ export default function App() {
   }, [treinos]);
 
   useEffect(() => {
+    localStorage.setItem('evotrain_som_timer', somTimer);
+  }, [somTimer]);
+
+  useEffect(() => {
     if (!timerAtivo) return;
 
     if (tempoRestante <= 0) {
       setTimerAtivo(false);
-      tocarSomProfissional();
-      enviarNotificacao('Descanso finalizado', 'Hora da próxima série!');
+
+      try {
+        tocarSomProfissional();
+      } catch (error) {
+        console.warn('Erro ao tocar som do timer:', error);
+      }
+
+      // No celular/PWA algumas notificações podem derrubar a tela.
+      // Mantemos a vibração e evitamos abrir notificação direta ao finalizar.
+      if (navigator.vibrate) {
+        navigator.vibrate([250, 120, 250]);
+      }
+
       return;
     }
 
@@ -1083,19 +1089,55 @@ export default function App() {
   }
 
   function tocarSomProfissional() {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
 
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.55);
+      function beep(frequencia: number, inicio: number, duracao: number, volume = 0.28) {
+        const oscillator = ctx.createOscillator();
+        oscillator.type =
+          somTimer === 'eletronico'
+            ? 'square'
+            : somTimer === 'vitoria'
+            ? 'triangle'
+            : 'sine';
+
+        oscillator.frequency.setValueAtTime(frequencia, ctx.currentTime + inicio);
+        oscillator.connect(gain);
+
+        gain.gain.setValueAtTime(0.001, ctx.currentTime + inicio);
+        gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + inicio + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + inicio + duracao);
+
+        oscillator.start(ctx.currentTime + inicio);
+        oscillator.stop(ctx.currentTime + inicio + duracao + 0.03);
+      }
+
+      if (somTimer === 'sino') {
+        beep(660, 0, 0.35);
+        beep(880, 0.18, 0.45);
+      } else if (somTimer === 'eletronico') {
+        beep(900, 0, 0.16);
+        beep(1200, 0.2, 0.16);
+        beep(900, 0.4, 0.2);
+      } else if (somTimer === 'vitoria') {
+        beep(523, 0, 0.18);
+        beep(659, 0.18, 0.18);
+        beep(784, 0.36, 0.42);
+      } else {
+        beep(880, 0, 0.45);
+      }
+
+      setTimeout(() => {
+        try {
+          ctx.close();
+        } catch {}
+      }, 1200);
+    } catch (error) {
+      console.warn('Áudio não disponível neste dispositivo:', error);
+    }
   }
 
   async function moverExercicio(treino: Treino, destinoId: string) {
@@ -1495,111 +1537,38 @@ export default function App() {
           </button>
 
           {menuLateralAberto && (
-            <div
-              style={styles.sideOverlay}
-              onClick={() => setMenuLateralAberto(false)}
-            >
-              <aside
-                style={styles.sideMenu}
-                onClick={(e) => e.stopPropagation()}
-              >
+            <div style={styles.sideOverlay} onClick={() => setMenuLateralAberto(false)}>
+              <aside style={styles.sideMenu} onClick={(e) => e.stopPropagation()}>
                 <div style={styles.sideHeader}>
                   <div style={styles.sideLogo}>⚡ EvoTrain</div>
-                  <button
-                    style={styles.sideClose}
-                    onClick={() => setMenuLateralAberto(false)}
-                  >
+                  <button style={styles.sideClose} onClick={() => setMenuLateralAberto(false)}>
                     ×
                   </button>
                 </div>
 
                 <div style={styles.sideProfile}>
                   {perfil?.foto ? (
-                    <img
-                      src={perfil.foto}
-                      alt="Perfil"
-                      style={styles.sideAvatar}
-                    />
+                    <img src={perfil.foto} alt="Perfil" style={styles.sideAvatar} />
                   ) : (
                     <div style={styles.sideAvatarFallback}>👤</div>
                   )}
 
                   <div>
                     <b>{perfil?.nome || 'Aluno'}</b>
-                    <small style={{ display: 'block', color: '#94A3B8' }}>
-                      {perfil?.email}
-                    </small>
-                    <span
-                      style={online ? styles.sideOnline : styles.sideOffline}
-                    >
+                    <small style={{ display: 'block', color: '#94A3B8' }}>{perfil?.email}</small>
+                    <span style={online ? styles.sideOnline : styles.sideOffline}>
                       {online ? 'Online' : 'Offline'}
                     </span>
                   </div>
                 </div>
 
-                <MenuItem
-                  label="Início"
-                  icon="🏠"
-                  ativo={abaAtiva === 'inicio'}
-                  onClick={() => {
-                    setAbaAtiva('inicio');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Treinos"
-                  icon="🏋️"
-                  ativo={abaAtiva === 'treinos'}
-                  onClick={() => {
-                    setAbaAtiva('treinos');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Estatísticas"
-                  icon="📊"
-                  ativo={abaAtiva === 'estatisticas'}
-                  onClick={() => {
-                    setAbaAtiva('estatisticas');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Avaliações"
-                  icon="📋"
-                  ativo={abaAtiva === 'avaliacoes'}
-                  onClick={() => {
-                    setAbaAtiva('avaliacoes');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Mensagens"
-                  icon="💬"
-                  ativo={abaAtiva === 'mensagens'}
-                  onClick={() => {
-                    setAbaAtiva('mensagens');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Configurações"
-                  icon="⚙️"
-                  ativo={abaAtiva === 'configuracoes'}
-                  onClick={() => {
-                    setAbaAtiva('configuracoes');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Perfil"
-                  icon="👤"
-                  ativo={abaAtiva === 'perfil'}
-                  onClick={() => {
-                    setAbaAtiva('perfil');
-                    setMenuLateralAberto(false);
-                  }}
-                />
+                <MenuItem label="Início" icon="🏠" ativo={abaAtiva === 'inicio'} onClick={() => { setAbaAtiva('inicio'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Treinos" icon="🏋️" ativo={abaAtiva === 'treinos'} onClick={() => { setAbaAtiva('treinos'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Estatísticas" icon="📊" ativo={abaAtiva === 'estatisticas'} onClick={() => { setAbaAtiva('estatisticas'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Avaliações" icon="📋" ativo={abaAtiva === 'avaliacoes'} onClick={() => { setAbaAtiva('avaliacoes'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Mensagens" icon="💬" ativo={abaAtiva === 'mensagens'} onClick={() => { setAbaAtiva('mensagens'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Configurações" icon="⚙️" ativo={abaAtiva === 'configuracoes'} onClick={() => { setAbaAtiva('configuracoes'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Perfil" icon="👤" ativo={abaAtiva === 'perfil'} onClick={() => { setAbaAtiva('perfil'); setMenuLateralAberto(false); }} />
 
                 <button style={styles.sideLogout} onClick={sair}>
                   Sair
@@ -1620,9 +1589,7 @@ export default function App() {
         <div style={styles.topbar}>
           <div>
             <h1 style={{ margin: 0 }}>EvoTrain</h1>
-            <small>
-              {online ? 'Online' : 'Offline - dados em cache/sincronização'}
-            </small>
+            <small>{online ? 'Online' : 'Offline - dados em cache/sincronização'}</small>
           </div>
 
           <div>
@@ -1646,91 +1613,87 @@ export default function App() {
         </div>
       )}
 
-      {((perfil?.tipo === 'aluno' && abaAtiva === 'perfil') ||
-        perfil?.tipo !== 'aluno') && (
-        <Card>
-          <h2>Meu perfil</h2>
+      {((perfil?.tipo === 'aluno' && abaAtiva === 'perfil') || perfil?.tipo !== 'aluno') && (
+      <Card>
+        <h2>Meu perfil</h2>
 
-          <input
-            style={styles.input}
-            placeholder="Nome"
-            value={perfil?.nome || ''}
-            onChange={(e) =>
-              setPerfil({ ...(perfil as Perfil), nome: e.target.value })
-            }
+        <input
+          style={styles.input}
+          placeholder="Nome"
+          value={perfil?.nome || ''}
+          onChange={(e) =>
+            setPerfil({ ...(perfil as Perfil), nome: e.target.value })
+          }
+        />
+
+        <label style={styles.label}>Foto do perfil</label>
+
+        <input
+          style={styles.input}
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            lerImagemLocal(e, (foto) =>
+              setPerfil({ ...(perfil as Perfil), foto })
+            )
+          }
+        />
+
+        {perfil?.foto && (
+          <img
+            src={perfil.foto}
+            alt="Foto do perfil"
+            style={styles.fotoPreview}
           />
+        )}
 
-          <label style={styles.label}>Foto do perfil</label>
-
-          <input
-            style={styles.input}
-            type="file"
-            accept="image/*"
-            onChange={(e) =>
-              lerImagemLocal(e, (foto) =>
-                setPerfil({ ...(perfil as Perfil), foto })
-              )
-            }
-          />
-
-          {perfil?.foto && (
-            <img
-              src={perfil.foto}
-              alt="Foto do perfil"
-              style={styles.fotoPreview}
+        {perfil?.tipo === 'professor' && (
+          <>
+            <input
+              style={styles.input}
+              placeholder="Formação"
+              value={perfil?.formacao || ''}
+              onChange={(e) =>
+                setPerfil({ ...(perfil as Perfil), formacao: e.target.value })
+              }
             />
-          )}
 
-          {perfil?.tipo === 'professor' && (
-            <>
-              <input
-                style={styles.input}
-                placeholder="Formação"
-                value={perfil?.formacao || ''}
-                onChange={(e) =>
-                  setPerfil({ ...(perfil as Perfil), formacao: e.target.value })
-                }
-              />
+            <input
+              style={styles.input}
+              placeholder="Especialidade"
+              value={perfil?.especialidade || ''}
+              onChange={(e) =>
+                setPerfil({
+                  ...(perfil as Perfil),
+                  especialidade: e.target.value,
+                })
+              }
+            />
 
-              <input
-                style={styles.input}
-                placeholder="Especialidade"
-                value={perfil?.especialidade || ''}
-                onChange={(e) =>
-                  setPerfil({
-                    ...(perfil as Perfil),
-                    especialidade: e.target.value,
-                  })
-                }
-              />
+            <input
+              style={styles.input}
+              placeholder="CREF"
+              value={perfil?.cref || ''}
+              onChange={(e) =>
+                setPerfil({ ...(perfil as Perfil), cref: e.target.value })
+              }
+            />
 
-              <input
-                style={styles.input}
-                placeholder="CREF"
-                value={perfil?.cref || ''}
-                onChange={(e) =>
-                  setPerfil({ ...(perfil as Perfil), cref: e.target.value })
-                }
-              />
+            <textarea
+              style={styles.input}
+              placeholder="Descrição profissional"
+              value={perfil?.descricao || ''}
+              onChange={(e) =>
+                setPerfil({ ...(perfil as Perfil), descricao: e.target.value })
+              }
+            />
+          </>
+        )}
 
-              <textarea
-                style={styles.input}
-                placeholder="Descrição profissional"
-                value={perfil?.descricao || ''}
-                onChange={(e) =>
-                  setPerfil({
-                    ...(perfil as Perfil),
-                    descricao: e.target.value,
-                  })
-                }
-              />
-            </>
-          )}
-
-          <button style={styles.primary} onClick={salvarPerfil}>
-            Salvar perfil
-          </button>
-        </Card>
+        <button style={styles.primary} onClick={salvarPerfil}>
+          Salvar perfil
+        </button>
+      </Card>
       )}
 
       {isAdmin && perfil?.tipo !== 'aluno' && (
@@ -2125,16 +2088,10 @@ export default function App() {
           <div style={styles.mobileHero}>
             <div>
               <small style={styles.mobileMuted}>Bem-vindo de volta</small>
-              <h2 style={{ margin: '6px 0 0' }}>
-                {perfil?.nome || 'Aluno'} 👋
-              </h2>
-              <p style={styles.mobileMuted}>
-                Foque no treino de hoje e mantenha sua evolução.
-              </p>
+              <h2 style={{ margin: '6px 0 0' }}>{perfil?.nome || 'Aluno'} 👋</h2>
+              <p style={styles.mobileMuted}>Foque no treino de hoje e mantenha sua evolução.</p>
             </div>
-            {perfil?.foto && (
-              <img src={perfil.foto} alt="Foto" style={styles.mobileAvatar} />
-            )}
+            {perfil?.foto && <img src={perfil.foto} alt="Foto" style={styles.mobileAvatar} />}
           </div>
 
           <div style={styles.mobileStatsGrid}>
@@ -2145,12 +2102,7 @@ export default function App() {
             </div>
             <div style={styles.mobileStatCard}>
               <span>Progresso</span>
-              <b>
-                {treinosOrdenados[0]
-                  ? Math.round(calcularProgresso(treinosOrdenados[0]))
-                  : 0}
-                %
-              </b>
+              <b>{treinosOrdenados[0] ? Math.round(calcularProgresso(treinosOrdenados[0])) : 0}%</b>
               <small>treino atual</small>
             </div>
             <div style={styles.mobileStatCard}>
@@ -2185,7 +2137,11 @@ export default function App() {
           <p style={styles.mobileMuted}>Preferências gerais do aluno.</p>
 
           <label style={styles.label}>Som do timer</label>
-          <select style={styles.input} defaultValue="padrao">
+          <select
+            style={styles.input}
+            value={somTimer}
+            onChange={(e) => setSomTimer(e.target.value)}
+          >
             <option value="padrao">Padrão / Bip</option>
             <option value="sino">Sino</option>
             <option value="eletronico">Eletrônico</option>
@@ -2201,8 +2157,7 @@ export default function App() {
           </button>
 
           <p style={styles.mobileMuted}>
-            O tempo de descanso continua sendo definido pelo professor em cada
-            exercício.
+            O tempo de descanso continua sendo definido pelo professor em cada exercício.
           </p>
         </Card>
       )}
@@ -2218,24 +2173,12 @@ export default function App() {
             </div>
             <div style={styles.mobileStatCard}>
               <span>Exercícios</span>
-              <b>
-                {treinos.reduce(
-                  (acc, t) => acc + (t.exercicios?.length || 0),
-                  0
-                )}
-              </b>
+              <b>{treinos.reduce((acc, t) => acc + (t.exercicios?.length || 0), 0)}</b>
               <small>cadastrados</small>
             </div>
             <div style={styles.mobileStatCard}>
               <span>Finalizados</span>
-              <b>
-                {treinos.reduce(
-                  (acc, t) =>
-                    acc +
-                    (t.exercicios || []).filter((e) => e.finalizado).length,
-                  0
-                )}
-              </b>
+              <b>{treinos.reduce((acc, t) => acc + (t.exercicios || []).filter((e) => e.finalizado).length, 0)}</b>
               <small>concluídos</small>
             </div>
           </div>
@@ -2252,16 +2195,13 @@ export default function App() {
         <Card>
           <h2>Avaliações</h2>
           <p style={styles.mobileMuted}>
-            Suas avaliações físicas e histórico aparecerão aqui quando o
-            professor registrar.
+            Suas avaliações físicas e histórico aparecerão aqui quando o professor registrar.
           </p>
           {alunos[0]?.avaliacoes?.length ? (
             alunos[0].avaliacoes.map((av) => (
               <div key={av.id} style={styles.statsWorkoutLine}>
                 <b>{av.data}</b>
-                <p>
-                  Peso: {av.peso || '-'} kg | IMC: {av.imc || '-'}
-                </p>
+                <p>Peso: {av.peso || '-'} kg | IMC: {av.imc || '-'}</p>
               </div>
             ))
           ) : (
@@ -2273,39 +2213,21 @@ export default function App() {
       {perfil?.tipo === 'aluno' && abaAtiva === 'mensagens' && (
         <Card>
           <h2>Mensagens</h2>
-          <p style={styles.mobileMuted}>
-            Mensagens dos treinos aparecem abaixo.
-          </p>
-          {treinos.flatMap((t) =>
-            (t.mensagens || []).map((m, i) => ({
-              ...m,
-              treino: t.nome,
-              id: `${t.id}-${i}`,
-            }))
-          ).length === 0 && <p>Nenhuma mensagem ainda.</p>}
-          {treinos
-            .flatMap((t) =>
-              (t.mensagens || []).map((m, i) => ({
-                ...m,
-                treino: t.nome,
-                id: `${t.id}-${i}`,
-              }))
-            )
-            .map((m) => (
-              <div key={m.id} style={styles.messageCardPremium}>
-                <small>{m.treino}</small>
-                <p>
-                  <b>{m.autor}:</b> {m.texto}
-                </p>
-                <small>{m.data}</small>
-              </div>
-            ))}
+          <p style={styles.mobileMuted}>Mensagens dos treinos aparecem abaixo.</p>
+          {treinos.flatMap((t) => (t.mensagens || []).map((m, i) => ({ ...m, treino: t.nome, id: `${t.id}-${i}` }))).length === 0 && (
+            <p>Nenhuma mensagem ainda.</p>
+          )}
+          {treinos.flatMap((t) => (t.mensagens || []).map((m, i) => ({ ...m, treino: t.nome, id: `${t.id}-${i}` }))).map((m) => (
+            <div key={m.id} style={styles.messageCardPremium}>
+              <small>{m.treino}</small>
+              <p><b>{m.autor}:</b> {m.texto}</p>
+              <small>{m.data}</small>
+            </div>
+          ))}
         </Card>
       )}
 
-      {(perfil?.tipo === 'aluno'
-        ? abaAtiva === 'treinos'
-        : abaProfessor === 'treinos') && (
+      {((perfil?.tipo === 'aluno' ? abaAtiva === 'treinos' : abaProfessor === 'treinos')) && (
         <>
           {perfil?.tipo === 'professor' && (
             <Card>
@@ -2583,9 +2505,7 @@ export default function App() {
                         timerAtivo={timerAtivo}
                         tempoRestante={tempoRestante}
                         timerInfo={timerInfo}
-                        onToggle={() =>
-                          setExercicioAbertoId(aberto ? '' : ex.id)
-                        }
+                        onToggle={() => setExercicioAbertoId(aberto ? '' : ex.id)}
                         onDragStart={() => setDragExercicioId(ex.id)}
                         onDrop={() => moverExercicio(treino, ex.id)}
                         onAtualizar={(campo: keyof Exercicio, valor: any) =>
@@ -2658,14 +2578,12 @@ function MobileExerciseCard({
     ) || totalSeries;
 
   const descanso = Number(ex.descanso) || 0;
-  const videoEmbed = transformarLinkVideo(ex.video);
   const timerDesteExercicio =
-    timerAtivo &&
-    String(timerInfo || '')
-      .toLowerCase()
-      .includes(String(ex.nome || '').toLowerCase());
+    timerAtivo && String(timerInfo || '').toLowerCase().includes(String(ex.nome || '').toLowerCase());
 
-  const tempoParaMostrar = timerDesteExercicio ? tempoRestante : descanso;
+  const tempoParaMostrar = timerDesteExercicio
+    ? tempoRestante
+    : descanso;
 
   if (!aberto) {
     return (
@@ -2678,19 +2596,14 @@ function MobileExerciseCard({
         style={mobileStyles.exerciseMini}
       >
         <div style={mobileStyles.miniLeft}>
-          <span
-            style={
-              ex.finalizado ? mobileStyles.checkDone : mobileStyles.checkEmpty
-            }
-          >
+          <span style={ex.finalizado ? mobileStyles.checkDone : mobileStyles.checkEmpty}>
             {ex.finalizado ? '✓' : ''}
           </span>
 
           <div>
             <b>{ex.nome || 'Exercício sem nome'}</b>
             <small style={mobileStyles.textSoft}>
-              {ex.series || '-'} séries • {ex.repeticoes || '-'} reps •{' '}
-              {ex.descanso || '-'}s
+              {ex.series || '-'} séries • {ex.repeticoes || '-'} reps • {ex.descanso || '-'}s
             </small>
           </div>
         </div>
@@ -2716,18 +2629,15 @@ function MobileExerciseCard({
         <div style={mobileStyles.topTitle}>
           <b>{treino.nome || 'Treino'}</b>
           <div style={mobileStyles.progressDots}>
-            {Array.from(
-              { length: Math.min(Math.max(totalSeries, 4), 6) },
-              (_, i) => (
-                <span
-                  key={i}
-                  style={{
-                    ...mobileStyles.dot,
-                    background: i < feitas.length ? '#7C3AED' : '#334155',
-                  }}
-                />
-              )
-            )}
+            {Array.from({ length: Math.min(Math.max(totalSeries, 4), 6) }, (_, i) => (
+              <span
+                key={i}
+                style={{
+                  ...mobileStyles.dot,
+                  background: i < feitas.length ? '#7C3AED' : '#334155',
+                }}
+              />
+            ))}
           </div>
         </div>
 
@@ -2738,21 +2648,15 @@ function MobileExerciseCard({
         <div style={mobileStyles.exerciseIcon}>🏋️</div>
 
         <div style={{ flex: 1 }}>
-          <h2 style={mobileStyles.exerciseName}>
-            {ex.nome || 'Exercício sem nome'}
-          </h2>
+          <h2 style={mobileStyles.exerciseName}>{ex.nome || 'Exercício sem nome'}</h2>
           <p style={mobileStyles.exerciseSub}>
-            {ex.cargaSugerida
-              ? `Carga sugerida: ${ex.cargaSugerida}`
-              : 'Execução do exercício'}
+            {ex.cargaSugerida ? `Carga sugerida: ${ex.cargaSugerida}` : 'Execução do exercício'}
           </p>
 
           <div style={mobileStyles.chipsRow}>
             <span style={mobileStyles.chip}>▰ {ex.series || '-'} séries</span>
             <span style={mobileStyles.chip}>↻ {ex.repeticoes || '-'} reps</span>
-            <span style={mobileStyles.chip}>
-              ◷ {ex.descanso || '-'}s descanso
-            </span>
+            <span style={mobileStyles.chip}>◷ {ex.descanso || '-'}s descanso</span>
             <span style={mobileStyles.chip}>⚗ Método: {ex.metodo || '-'}</span>
           </div>
         </div>
@@ -2761,32 +2665,7 @@ function MobileExerciseCard({
       </div>
 
       <div style={mobileStyles.videoCard}>
-        {videoEmbed ? (
-          String(videoEmbed)
-            .toLowerCase()
-            .match(/\.(mp4|webm|ogg)(\?|$)/) ? (
-            <video
-              src={videoEmbed}
-              controls
-              playsInline
-              style={mobileStyles.videoFrame}
-            />
-          ) : (
-            <iframe
-              src={videoEmbed}
-              title={`Vídeo - ${ex.nome || 'Exercício'}`}
-              style={mobileStyles.videoFrame}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          )
-        ) : (
-          <div style={mobileStyles.videoEmpty}>
-            <div style={mobileStyles.playCircle}>▶</div>
-            <b>Assistir execução</b>
-            <small>Adicione um link de vídeo para aparecer aqui</small>
-          </div>
-        )}
+        <PlayerVideoSeguro url={ex.video} nome={ex.nome} />
 
         {(perfil?.tipo === 'aluno' || perfil?.tipo === 'professor') && (
           <div style={mobileStyles.videoInputBox}>
@@ -2838,18 +2717,10 @@ function MobileExerciseCard({
               <small>{ex.repeticoes || '-'} reps</small>
               <small
                 style={{
-                  color: concluida
-                    ? '#22C55E'
-                    : emAndamento
-                    ? '#A855F7'
-                    : '#CBD5E1',
+                  color: concluida ? '#22C55E' : emAndamento ? '#A855F7' : '#CBD5E1',
                 }}
               >
-                {concluida
-                  ? '✓ Concluída'
-                  : emAndamento
-                  ? 'Em andamento'
-                  : 'Pendente'}
+                {concluida ? '✓ Concluída' : emAndamento ? 'Em andamento' : 'Pendente'}
               </small>
             </button>
           );
@@ -2859,16 +2730,16 @@ function MobileExerciseCard({
       <div style={mobileStyles.timerCard}>
         <div style={mobileStyles.timerTop}>
           <b style={{ color: '#A855F7' }}>SÉRIE {proximaSerie || 1}</b>
-          <span>Descanso: {descanso || '-'}s ✎</span>
+          <span>
+            Descanso: {descanso || '-'}s ✎
+          </span>
         </div>
 
         <div style={mobileStyles.timerCircle}>
           <div
             style={{
               ...mobileStyles.timerRing,
-              background: `conic-gradient(#7C3AED ${
-                timerDesteExercicio ? 65 : 0
-              }%, #1E293B 0%)`,
+              background: `conic-gradient(#7C3AED ${timerDesteExercicio ? 65 : 0}%, #1E293B 0%)`,
             }}
           >
             <div style={mobileStyles.timerInner}>
@@ -2914,9 +2785,7 @@ function MobileExerciseCard({
         <textarea
           style={mobileStyles.textareaMobile}
           placeholder="Como foi a execução?"
-          value={
-            perfil?.tipo === 'aluno' ? ex.obsAluno || '' : ex.obsProfessor || ''
-          }
+          value={perfil?.tipo === 'aluno' ? ex.obsAluno || '' : ex.obsProfessor || ''}
           onChange={(e) =>
             onAtualizar(
               perfil?.tipo === 'aluno' ? 'obsAluno' : 'obsProfessor',
@@ -2981,64 +2850,86 @@ function MobileExerciseCard({
   );
 }
 
-function transformarLinkVideo(url: string) {
-  if (!url) return '';
 
-  let link = String(url).trim();
-  if (!link) return '';
 
-  if (link.startsWith('www.')) link = `https://${link}`;
-  if (link.startsWith('youtube.com')) link = `https://www.${link}`;
-  if (link.startsWith('m.youtube.com')) link = `https://${link}`;
-  if (link.startsWith('youtu.be')) link = `https://${link}`;
-  if (link.startsWith('ttps://')) link = `h${link}`;
-  if (link.startsWith('ps://')) link = `htt${link}`;
 
-  try {
-    const u = new URL(link);
-    const host = u.hostname.replace('www.', '');
+function PlayerVideoSeguro({ url, nome }: { url: string; nome: string }) {
+  const original = String(url || '').trim();
+  const normalizada = normalizarUrlVideo(original);
+  const lower = normalizada.toLowerCase();
 
-    if (
-      host === 'youtube.com' ||
-      host === 'm.youtube.com' ||
-      host === 'music.youtube.com'
-    ) {
-      let id =
-        u.searchParams.get('v') ||
-        u.pathname.split('/shorts/')[1] ||
-        u.pathname.split('/embed/')[1] ||
-        '';
-      id = id.split('?')[0].split('&')[0].split('/')[0];
-      return id
-        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`
-        : '';
-    }
-
-    if (host === 'youtu.be') {
-      const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
-      return id
-        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`
-        : '';
-    }
-
-    if (host === 'vimeo.com') {
-      const id = u.pathname.split('/').filter(Boolean)[0];
-      return id ? `https://player.vimeo.com/video/${id}` : '';
-    }
-
-    return link;
-  } catch {
-    const watch = link.match(/[?&]v=([^&]+)/);
-    if (watch?.[1])
-      return `https://www.youtube.com/embed/${watch[1]}?rel=0&modestbranding=1`;
-
-    const short = link.match(/youtu\.be\/([^?&/]+)/);
-    if (short?.[1])
-      return `https://www.youtube.com/embed/${short[1]}?rel=0&modestbranding=1`;
-
-    return '';
+  if (!normalizada) {
+    return (
+      <div style={mobileStyles.videoEmpty}>
+        <div style={mobileStyles.playCircle}>▶</div>
+        <b>Assistir execução</b>
+        <small>Adicione um link de vídeo para aparecer aqui</small>
+      </div>
+    );
   }
+
+  const isImagem =
+    lower.match(/\.(gif|png|jpg|jpeg|webp)(\?|$)/) ||
+    lower.includes('media.giphy.com') ||
+    lower.includes('giphy.com/media');
+
+  const isVideoDireto = lower.match(/\.(mp4|webm|ogg|mov)(\?|$)/);
+
+  const isEmbedPermitido =
+    lower.includes('youtube.com/embed/') ||
+    lower.includes('youtube-nocookie.com/embed/') ||
+    lower.includes('player.vimeo.com/video/');
+
+  if (isImagem) {
+    return (
+      <img
+        src={normalizada}
+        alt={nome || 'Execução do exercício'}
+        style={mobileStyles.videoFrame}
+      />
+    );
+  }
+
+  if (isVideoDireto) {
+    return (
+      <video
+        src={normalizada}
+        controls
+        playsInline
+        style={mobileStyles.videoFrame}
+      />
+    );
+  }
+
+  if (isEmbedPermitido) {
+    return (
+      <iframe
+        src={normalizada}
+        title={`Vídeo - ${nome || 'Exercício'}`}
+        style={mobileStyles.videoFrame}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    );
+  }
+
+  return (
+    <div style={mobileStyles.videoEmpty}>
+      <div style={mobileStyles.playCircle}>↗</div>
+      <b>Este site bloqueia player interno</b>
+      <small>Use YouTube, Vimeo, GIF direto ou MP4 direto.</small>
+      <a
+        href={normalizada}
+        target="_blank"
+        rel="noreferrer"
+        style={mobileStyles.openVideoLink}
+      >
+        Abrir vídeo
+      </a>
+    </div>
+  );
 }
+
 
 const mobileStyles: any = {
   screenCard: {
@@ -3163,6 +3054,17 @@ const mobileStyles: any = {
     textAlign: 'center',
     color: '#CBD5E1',
     padding: 20,
+  },
+
+  openVideoLink: {
+    marginTop: 10,
+    color: 'white',
+    background: 'linear-gradient(135deg,#7C3AED,#9333EA)',
+    padding: '10px 14px',
+    borderRadius: 12,
+    textDecoration: 'none',
+    fontWeight: 900,
+    display: 'inline-block',
   },
   playCircle: {
     width: 78,
@@ -3400,69 +3302,55 @@ const mobileStyles: any = {
 function normalizarUrlVideo(url: string) {
   if (!url) return '';
 
-  const limpo = String(url).trim();
+  let link = String(url).trim();
+  if (!link) return '';
+
+  if (link.startsWith('www.')) link = `https://${link}`;
+  if (link.startsWith('youtube.com')) link = `https://www.${link}`;
+  if (link.startsWith('m.youtube.com')) link = `https://${link}`;
+  if (link.startsWith('youtu.be')) link = `https://${link}`;
+  if (link.startsWith('ttps://')) link = `h${link}`;
+  if (link.startsWith('ps://')) link = `htt${link}`;
 
   try {
-    const u = new URL(limpo);
+    const u = new URL(link);
+    const host = u.hostname.replace('www.', '');
 
-    if (u.hostname.includes('youtube.com')) {
-      if (u.pathname.includes('/shorts/')) {
-        const id = u.pathname.split('/shorts/')[1]?.split(/[/?&]/)[0];
-        return id ? `https://www.youtube.com/embed/${id}` : limpo;
-      }
+    if (
+      host === 'youtube.com' ||
+      host === 'm.youtube.com' ||
+      host === 'music.youtube.com'
+    ) {
+      let id =
+        u.searchParams.get('v') ||
+        u.pathname.split('/shorts/')[1] ||
+        u.pathname.split('/embed/')[1] ||
+        '';
 
-      const id = u.searchParams.get('v');
-      return id ? `https://www.youtube.com/embed/${id}` : limpo;
+      id = id.split('?')[0].split('&')[0].split('/')[0];
+
+      return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1` : '';
     }
 
-    if (u.hostname.includes('youtu.be')) {
-      const id = u.pathname.replace('/', '').split(/[/?&]/)[0];
-      return id ? `https://www.youtube.com/embed/${id}` : limpo;
+    if (host === 'youtu.be') {
+      const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
+      return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1` : '';
     }
 
-    if (u.hostname.includes('vimeo.com')) {
-      const id = u.pathname.split('/').filter(Boolean)[0];
-      return id ? `https://player.vimeo.com/video/${id}` : limpo;
+    if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+      const id = u.pathname.split('/').filter(Boolean).pop() || '';
+      return id ? `https://player.vimeo.com/video/${id}` : '';
     }
 
-    return limpo;
+    return link;
   } catch {
-    return limpo;
+    return '';
   }
-}
-
-function VideoExercicio({ url }: { url: string }) {
-  const videoUrl = normalizarUrlVideo(url);
-
-  if (!videoUrl) {
-    return <div style={styles.videoEmpty}>Sem link de vídeo disponível</div>;
-  }
-
-  const isMp4 = videoUrl.toLowerCase().includes('.mp4');
-
-  return (
-    <div style={styles.videoBox}>
-      {isMp4 ? (
-        <video src={videoUrl} controls style={styles.videoFrame} />
-      ) : (
-        <iframe
-          src={videoUrl}
-          title="Vídeo do exercício"
-          style={styles.videoFrame}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        />
-      )}
-    </div>
-  );
 }
 
 function MenuItem({ label, icon, ativo, onClick }: any) {
   return (
-    <button
-      style={ativo ? styles.sideMenuItemActive : styles.sideMenuItem}
-      onClick={onClick}
-    >
+    <button style={ativo ? styles.sideMenuItemActive : styles.sideMenuItem} onClick={onClick}>
       <span>{icon}</span>
       <b>{label}</b>
     </button>
@@ -3548,60 +3436,6 @@ function ProgressBar({ value }: any) {
       <div style={styles.progressBg}>
         <div style={{ ...styles.progressFill, width: `${value}%` }} />
       </div>
-    </div>
-  );
-}
-
-function GraficoCarga({ historico }: any) {
-  const pontos = (historico || [])
-    .map((h: any) =>
-      Number(
-        String(h.carga)
-          .replace(',', '.')
-          .replace(/[^0-9.]/g, '')
-      )
-    )
-    .filter((n: number) => !isNaN(n));
-
-  if (pontos.length < 2) {
-    return (
-      <p>
-        <small>Gráfico aparece após 2 registros de carga.</small>
-      </p>
-    );
-  }
-
-  const max = Math.max(...pontos);
-  const min = Math.min(...pontos);
-  const range = max - min || 1;
-
-  const coords = pontos
-    .map((p: number, i: number) => {
-      const x = (i / (pontos.length - 1)) * 260;
-      const y = 90 - ((p - min) / range) * 80;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <div style={styles.chartBox}>
-      <b>Evolução de carga</b>
-
-      <svg width="280" height="110" viewBox="0 0 280 110">
-        <polyline
-          fill="none"
-          stroke="#2563eb"
-          strokeWidth="4"
-          points={coords}
-        />
-
-        {pontos.map((p: number, i: number) => {
-          const x = (i / (pontos.length - 1)) * 260;
-          const y = 90 - ((p - min) / range) * 80;
-
-          return <circle key={i} cx={x} cy={y} r="4" fill="#16a34a" />;
-        })}
-      </svg>
     </div>
   );
 }
@@ -4526,8 +4360,7 @@ const styles: any = {
   sideMenuItemActive: {
     width: '100%',
     border: '1px solid #7C3AED',
-    background:
-      'linear-gradient(135deg,rgba(124,58,237,.45),rgba(147,51,234,.28))',
+    background: 'linear-gradient(135deg,rgba(124,58,237,.45),rgba(147,51,234,.28))',
     color: 'white',
     borderRadius: 16,
     padding: '14px 14px',
@@ -4593,5 +4426,5 @@ const styles: any = {
     margin: '14px 0',
     fontWeight: 800,
     textAlign: 'center',
-  },
+  }
 };
