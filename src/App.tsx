@@ -1067,14 +1067,6 @@ export default function App() {
     setNotificacoes(permissao);
   }
 
-  function enviarNotificacao(titulo: string, corpo: string) {
-    if (
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'granted'
-    ) {
-      new Notification(titulo, { body: corpo, icon: '/icon-192.png' });
-    }
-  }
 
   function iniciarDescanso(segundos: number, info = 'Descanso') {
     setTimerInfo(info);
