@@ -30,6 +30,7 @@ import StatsCards from './components/StatsCards';
 import ExerciseCard from './components/ExerciseCard';
 import { premiumTheme } from './styles/PremiumTheme';
 
+
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
 type StatusUsuario = 'pendente' | 'aprovado' | 'bloqueado';
 
@@ -167,15 +168,7 @@ export default function App() {
     'treinos'
   );
   const [novaSenhaPrimeiroAcesso, setNovaSenhaPrimeiroAcesso] = useState('');
-  const [abaAtiva, setAbaAtiva] = useState<
-    | 'inicio'
-    | 'treinos'
-    | 'estatisticas'
-    | 'avaliacoes'
-    | 'mensagens'
-    | 'configuracoes'
-    | 'perfil'
-  >('inicio');
+  const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'treinos' | 'estatisticas' | 'avaliacoes' | 'mensagens' | 'configuracoes' | 'perfil'>('inicio');
   const [menuLateralAberto, setMenuLateralAberto] = useState(false);
 
   const [configSistema, setConfigSistema] = useState<ConfigSistema>({
@@ -1495,111 +1488,38 @@ export default function App() {
           </button>
 
           {menuLateralAberto && (
-            <div
-              style={styles.sideOverlay}
-              onClick={() => setMenuLateralAberto(false)}
-            >
-              <aside
-                style={styles.sideMenu}
-                onClick={(e) => e.stopPropagation()}
-              >
+            <div style={styles.sideOverlay} onClick={() => setMenuLateralAberto(false)}>
+              <aside style={styles.sideMenu} onClick={(e) => e.stopPropagation()}>
                 <div style={styles.sideHeader}>
                   <div style={styles.sideLogo}>⚡ EvoTrain</div>
-                  <button
-                    style={styles.sideClose}
-                    onClick={() => setMenuLateralAberto(false)}
-                  >
+                  <button style={styles.sideClose} onClick={() => setMenuLateralAberto(false)}>
                     ×
                   </button>
                 </div>
 
                 <div style={styles.sideProfile}>
                   {perfil?.foto ? (
-                    <img
-                      src={perfil.foto}
-                      alt="Perfil"
-                      style={styles.sideAvatar}
-                    />
+                    <img src={perfil.foto} alt="Perfil" style={styles.sideAvatar} />
                   ) : (
                     <div style={styles.sideAvatarFallback}>👤</div>
                   )}
 
                   <div>
                     <b>{perfil?.nome || 'Aluno'}</b>
-                    <small style={{ display: 'block', color: '#94A3B8' }}>
-                      {perfil?.email}
-                    </small>
-                    <span
-                      style={online ? styles.sideOnline : styles.sideOffline}
-                    >
+                    <small style={{ display: 'block', color: '#94A3B8' }}>{perfil?.email}</small>
+                    <span style={online ? styles.sideOnline : styles.sideOffline}>
                       {online ? 'Online' : 'Offline'}
                     </span>
                   </div>
                 </div>
 
-                <MenuItem
-                  label="Início"
-                  icon="🏠"
-                  ativo={abaAtiva === 'inicio'}
-                  onClick={() => {
-                    setAbaAtiva('inicio');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Treinos"
-                  icon="🏋️"
-                  ativo={abaAtiva === 'treinos'}
-                  onClick={() => {
-                    setAbaAtiva('treinos');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Estatísticas"
-                  icon="📊"
-                  ativo={abaAtiva === 'estatisticas'}
-                  onClick={() => {
-                    setAbaAtiva('estatisticas');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Avaliações"
-                  icon="📋"
-                  ativo={abaAtiva === 'avaliacoes'}
-                  onClick={() => {
-                    setAbaAtiva('avaliacoes');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Mensagens"
-                  icon="💬"
-                  ativo={abaAtiva === 'mensagens'}
-                  onClick={() => {
-                    setAbaAtiva('mensagens');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Configurações"
-                  icon="⚙️"
-                  ativo={abaAtiva === 'configuracoes'}
-                  onClick={() => {
-                    setAbaAtiva('configuracoes');
-                    setMenuLateralAberto(false);
-                  }}
-                />
-                <MenuItem
-                  label="Perfil"
-                  icon="👤"
-                  ativo={abaAtiva === 'perfil'}
-                  onClick={() => {
-                    setAbaAtiva('perfil');
-                    setMenuLateralAberto(false);
-                  }}
-                />
+                <MenuItem label="Início" icon="🏠" ativo={abaAtiva === 'inicio'} onClick={() => { setAbaAtiva('inicio'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Treinos" icon="🏋️" ativo={abaAtiva === 'treinos'} onClick={() => { setAbaAtiva('treinos'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Estatísticas" icon="📊" ativo={abaAtiva === 'estatisticas'} onClick={() => { setAbaAtiva('estatisticas'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Avaliações" icon="📋" ativo={abaAtiva === 'avaliacoes'} onClick={() => { setAbaAtiva('avaliacoes'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Mensagens" icon="💬" ativo={abaAtiva === 'mensagens'} onClick={() => { setAbaAtiva('mensagens'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Configurações" icon="⚙️" ativo={abaAtiva === 'configuracoes'} onClick={() => { setAbaAtiva('configuracoes'); setMenuLateralAberto(false); }} />
+                <MenuItem label="Perfil" icon="👤" ativo={abaAtiva === 'perfil'} onClick={() => { setAbaAtiva('perfil'); setMenuLateralAberto(false); }} />
 
                 <button style={styles.sideLogout} onClick={sair}>
                   Sair
@@ -1620,9 +1540,7 @@ export default function App() {
         <div style={styles.topbar}>
           <div>
             <h1 style={{ margin: 0 }}>EvoTrain</h1>
-            <small>
-              {online ? 'Online' : 'Offline - dados em cache/sincronização'}
-            </small>
+            <small>{online ? 'Online' : 'Offline - dados em cache/sincronização'}</small>
           </div>
 
           <div>
@@ -1646,91 +1564,87 @@ export default function App() {
         </div>
       )}
 
-      {((perfil?.tipo === 'aluno' && abaAtiva === 'perfil') ||
-        perfil?.tipo !== 'aluno') && (
-        <Card>
-          <h2>Meu perfil</h2>
+      {((perfil?.tipo === 'aluno' && abaAtiva === 'perfil') || perfil?.tipo !== 'aluno') && (
+      <Card>
+        <h2>Meu perfil</h2>
 
-          <input
-            style={styles.input}
-            placeholder="Nome"
-            value={perfil?.nome || ''}
-            onChange={(e) =>
-              setPerfil({ ...(perfil as Perfil), nome: e.target.value })
-            }
+        <input
+          style={styles.input}
+          placeholder="Nome"
+          value={perfil?.nome || ''}
+          onChange={(e) =>
+            setPerfil({ ...(perfil as Perfil), nome: e.target.value })
+          }
+        />
+
+        <label style={styles.label}>Foto do perfil</label>
+
+        <input
+          style={styles.input}
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            lerImagemLocal(e, (foto) =>
+              setPerfil({ ...(perfil as Perfil), foto })
+            )
+          }
+        />
+
+        {perfil?.foto && (
+          <img
+            src={perfil.foto}
+            alt="Foto do perfil"
+            style={styles.fotoPreview}
           />
+        )}
 
-          <label style={styles.label}>Foto do perfil</label>
-
-          <input
-            style={styles.input}
-            type="file"
-            accept="image/*"
-            onChange={(e) =>
-              lerImagemLocal(e, (foto) =>
-                setPerfil({ ...(perfil as Perfil), foto })
-              )
-            }
-          />
-
-          {perfil?.foto && (
-            <img
-              src={perfil.foto}
-              alt="Foto do perfil"
-              style={styles.fotoPreview}
+        {perfil?.tipo === 'professor' && (
+          <>
+            <input
+              style={styles.input}
+              placeholder="Formação"
+              value={perfil?.formacao || ''}
+              onChange={(e) =>
+                setPerfil({ ...(perfil as Perfil), formacao: e.target.value })
+              }
             />
-          )}
 
-          {perfil?.tipo === 'professor' && (
-            <>
-              <input
-                style={styles.input}
-                placeholder="Formação"
-                value={perfil?.formacao || ''}
-                onChange={(e) =>
-                  setPerfil({ ...(perfil as Perfil), formacao: e.target.value })
-                }
-              />
+            <input
+              style={styles.input}
+              placeholder="Especialidade"
+              value={perfil?.especialidade || ''}
+              onChange={(e) =>
+                setPerfil({
+                  ...(perfil as Perfil),
+                  especialidade: e.target.value,
+                })
+              }
+            />
 
-              <input
-                style={styles.input}
-                placeholder="Especialidade"
-                value={perfil?.especialidade || ''}
-                onChange={(e) =>
-                  setPerfil({
-                    ...(perfil as Perfil),
-                    especialidade: e.target.value,
-                  })
-                }
-              />
+            <input
+              style={styles.input}
+              placeholder="CREF"
+              value={perfil?.cref || ''}
+              onChange={(e) =>
+                setPerfil({ ...(perfil as Perfil), cref: e.target.value })
+              }
+            />
 
-              <input
-                style={styles.input}
-                placeholder="CREF"
-                value={perfil?.cref || ''}
-                onChange={(e) =>
-                  setPerfil({ ...(perfil as Perfil), cref: e.target.value })
-                }
-              />
+            <textarea
+              style={styles.input}
+              placeholder="Descrição profissional"
+              value={perfil?.descricao || ''}
+              onChange={(e) =>
+                setPerfil({ ...(perfil as Perfil), descricao: e.target.value })
+              }
+            />
+          </>
+        )}
 
-              <textarea
-                style={styles.input}
-                placeholder="Descrição profissional"
-                value={perfil?.descricao || ''}
-                onChange={(e) =>
-                  setPerfil({
-                    ...(perfil as Perfil),
-                    descricao: e.target.value,
-                  })
-                }
-              />
-            </>
-          )}
-
-          <button style={styles.primary} onClick={salvarPerfil}>
-            Salvar perfil
-          </button>
-        </Card>
+        <button style={styles.primary} onClick={salvarPerfil}>
+          Salvar perfil
+        </button>
+      </Card>
       )}
 
       {isAdmin && perfil?.tipo !== 'aluno' && (
@@ -2120,21 +2034,16 @@ export default function App() {
         </Card>
       )}
 
+
       {perfil?.tipo === 'aluno' && abaAtiva === 'inicio' && (
         <div style={styles.mobileHome}>
           <div style={styles.mobileHero}>
             <div>
               <small style={styles.mobileMuted}>Bem-vindo de volta</small>
-              <h2 style={{ margin: '6px 0 0' }}>
-                {perfil?.nome || 'Aluno'} 👋
-              </h2>
-              <p style={styles.mobileMuted}>
-                Foque no treino de hoje e mantenha sua evolução.
-              </p>
+              <h2 style={{ margin: '6px 0 0' }}>{perfil?.nome || 'Aluno'} 👋</h2>
+              <p style={styles.mobileMuted}>Foque no treino de hoje e mantenha sua evolução.</p>
             </div>
-            {perfil?.foto && (
-              <img src={perfil.foto} alt="Foto" style={styles.mobileAvatar} />
-            )}
+            {perfil?.foto && <img src={perfil.foto} alt="Foto" style={styles.mobileAvatar} />}
           </div>
 
           <div style={styles.mobileStatsGrid}>
@@ -2145,12 +2054,7 @@ export default function App() {
             </div>
             <div style={styles.mobileStatCard}>
               <span>Progresso</span>
-              <b>
-                {treinosOrdenados[0]
-                  ? Math.round(calcularProgresso(treinosOrdenados[0]))
-                  : 0}
-                %
-              </b>
+              <b>{treinosOrdenados[0] ? Math.round(calcularProgresso(treinosOrdenados[0])) : 0}%</b>
               <small>treino atual</small>
             </div>
             <div style={styles.mobileStatCard}>
@@ -2201,11 +2105,11 @@ export default function App() {
           </button>
 
           <p style={styles.mobileMuted}>
-            O tempo de descanso continua sendo definido pelo professor em cada
-            exercício.
+            O tempo de descanso continua sendo definido pelo professor em cada exercício.
           </p>
         </Card>
       )}
+
 
       {perfil?.tipo === 'aluno' && abaAtiva === 'estatisticas' && (
         <Card>
@@ -2218,24 +2122,12 @@ export default function App() {
             </div>
             <div style={styles.mobileStatCard}>
               <span>Exercícios</span>
-              <b>
-                {treinos.reduce(
-                  (acc, t) => acc + (t.exercicios?.length || 0),
-                  0
-                )}
-              </b>
+              <b>{treinos.reduce((acc, t) => acc + (t.exercicios?.length || 0), 0)}</b>
               <small>cadastrados</small>
             </div>
             <div style={styles.mobileStatCard}>
               <span>Finalizados</span>
-              <b>
-                {treinos.reduce(
-                  (acc, t) =>
-                    acc +
-                    (t.exercicios || []).filter((e) => e.finalizado).length,
-                  0
-                )}
-              </b>
+              <b>{treinos.reduce((acc, t) => acc + (t.exercicios || []).filter((e) => e.finalizado).length, 0)}</b>
               <small>concluídos</small>
             </div>
           </div>
@@ -2252,16 +2144,13 @@ export default function App() {
         <Card>
           <h2>Avaliações</h2>
           <p style={styles.mobileMuted}>
-            Suas avaliações físicas e histórico aparecerão aqui quando o
-            professor registrar.
+            Suas avaliações físicas e histórico aparecerão aqui quando o professor registrar.
           </p>
           {alunos[0]?.avaliacoes?.length ? (
             alunos[0].avaliacoes.map((av) => (
               <div key={av.id} style={styles.statsWorkoutLine}>
                 <b>{av.data}</b>
-                <p>
-                  Peso: {av.peso || '-'} kg | IMC: {av.imc || '-'}
-                </p>
+                <p>Peso: {av.peso || '-'} kg | IMC: {av.imc || '-'}</p>
               </div>
             ))
           ) : (
@@ -2273,39 +2162,21 @@ export default function App() {
       {perfil?.tipo === 'aluno' && abaAtiva === 'mensagens' && (
         <Card>
           <h2>Mensagens</h2>
-          <p style={styles.mobileMuted}>
-            Mensagens dos treinos aparecem abaixo.
-          </p>
-          {treinos.flatMap((t) =>
-            (t.mensagens || []).map((m, i) => ({
-              ...m,
-              treino: t.nome,
-              id: `${t.id}-${i}`,
-            }))
-          ).length === 0 && <p>Nenhuma mensagem ainda.</p>}
-          {treinos
-            .flatMap((t) =>
-              (t.mensagens || []).map((m, i) => ({
-                ...m,
-                treino: t.nome,
-                id: `${t.id}-${i}`,
-              }))
-            )
-            .map((m) => (
-              <div key={m.id} style={styles.messageCardPremium}>
-                <small>{m.treino}</small>
-                <p>
-                  <b>{m.autor}:</b> {m.texto}
-                </p>
-                <small>{m.data}</small>
-              </div>
-            ))}
+          <p style={styles.mobileMuted}>Mensagens dos treinos aparecem abaixo.</p>
+          {treinos.flatMap((t) => (t.mensagens || []).map((m, i) => ({ ...m, treino: t.nome, id: `${t.id}-${i}` }))).length === 0 && (
+            <p>Nenhuma mensagem ainda.</p>
+          )}
+          {treinos.flatMap((t) => (t.mensagens || []).map((m, i) => ({ ...m, treino: t.nome, id: `${t.id}-${i}` }))).map((m) => (
+            <div key={m.id} style={styles.messageCardPremium}>
+              <small>{m.treino}</small>
+              <p><b>{m.autor}:</b> {m.texto}</p>
+              <small>{m.data}</small>
+            </div>
+          ))}
         </Card>
       )}
 
-      {(perfil?.tipo === 'aluno'
-        ? abaAtiva === 'treinos'
-        : abaProfessor === 'treinos') && (
+      {((perfil?.tipo === 'aluno' ? abaAtiva === 'treinos' : abaProfessor === 'treinos')) && (
         <>
           {perfil?.tipo === 'professor' && (
             <Card>
@@ -2583,9 +2454,7 @@ export default function App() {
                         timerAtivo={timerAtivo}
                         tempoRestante={tempoRestante}
                         timerInfo={timerInfo}
-                        onToggle={() =>
-                          setExercicioAbertoId(aberto ? '' : ex.id)
-                        }
+                        onToggle={() => setExercicioAbertoId(aberto ? '' : ex.id)}
                         onDragStart={() => setDragExercicioId(ex.id)}
                         onDrop={() => moverExercicio(treino, ex.id)}
                         onAtualizar={(campo: keyof Exercicio, valor: any) =>
@@ -2633,6 +2502,7 @@ export default function App() {
   );
 }
 
+
 function MobileExerciseCard({
   ex,
   treino,
@@ -2660,12 +2530,11 @@ function MobileExerciseCard({
   const descanso = Number(ex.descanso) || 0;
   const videoEmbed = transformarLinkVideo(ex.video);
   const timerDesteExercicio =
-    timerAtivo &&
-    String(timerInfo || '')
-      .toLowerCase()
-      .includes(String(ex.nome || '').toLowerCase());
+    timerAtivo && String(timerInfo || '').toLowerCase().includes(String(ex.nome || '').toLowerCase());
 
-  const tempoParaMostrar = timerDesteExercicio ? tempoRestante : descanso;
+  const tempoParaMostrar = timerDesteExercicio
+    ? tempoRestante
+    : descanso;
 
   if (!aberto) {
     return (
@@ -2678,19 +2547,14 @@ function MobileExerciseCard({
         style={mobileStyles.exerciseMini}
       >
         <div style={mobileStyles.miniLeft}>
-          <span
-            style={
-              ex.finalizado ? mobileStyles.checkDone : mobileStyles.checkEmpty
-            }
-          >
+          <span style={ex.finalizado ? mobileStyles.checkDone : mobileStyles.checkEmpty}>
             {ex.finalizado ? '✓' : ''}
           </span>
 
           <div>
             <b>{ex.nome || 'Exercício sem nome'}</b>
             <small style={mobileStyles.textSoft}>
-              {ex.series || '-'} séries • {ex.repeticoes || '-'} reps •{' '}
-              {ex.descanso || '-'}s
+              {ex.series || '-'} séries • {ex.repeticoes || '-'} reps • {ex.descanso || '-'}s
             </small>
           </div>
         </div>
@@ -2716,18 +2580,15 @@ function MobileExerciseCard({
         <div style={mobileStyles.topTitle}>
           <b>{treino.nome || 'Treino'}</b>
           <div style={mobileStyles.progressDots}>
-            {Array.from(
-              { length: Math.min(Math.max(totalSeries, 4), 6) },
-              (_, i) => (
-                <span
-                  key={i}
-                  style={{
-                    ...mobileStyles.dot,
-                    background: i < feitas.length ? '#7C3AED' : '#334155',
-                  }}
-                />
-              )
-            )}
+            {Array.from({ length: Math.min(Math.max(totalSeries, 4), 6) }, (_, i) => (
+              <span
+                key={i}
+                style={{
+                  ...mobileStyles.dot,
+                  background: i < feitas.length ? '#7C3AED' : '#334155',
+                }}
+              />
+            ))}
           </div>
         </div>
 
@@ -2738,21 +2599,15 @@ function MobileExerciseCard({
         <div style={mobileStyles.exerciseIcon}>🏋️</div>
 
         <div style={{ flex: 1 }}>
-          <h2 style={mobileStyles.exerciseName}>
-            {ex.nome || 'Exercício sem nome'}
-          </h2>
+          <h2 style={mobileStyles.exerciseName}>{ex.nome || 'Exercício sem nome'}</h2>
           <p style={mobileStyles.exerciseSub}>
-            {ex.cargaSugerida
-              ? `Carga sugerida: ${ex.cargaSugerida}`
-              : 'Execução do exercício'}
+            {ex.cargaSugerida ? `Carga sugerida: ${ex.cargaSugerida}` : 'Execução do exercício'}
           </p>
 
           <div style={mobileStyles.chipsRow}>
             <span style={mobileStyles.chip}>▰ {ex.series || '-'} séries</span>
             <span style={mobileStyles.chip}>↻ {ex.repeticoes || '-'} reps</span>
-            <span style={mobileStyles.chip}>
-              ◷ {ex.descanso || '-'}s descanso
-            </span>
+            <span style={mobileStyles.chip}>◷ {ex.descanso || '-'}s descanso</span>
             <span style={mobileStyles.chip}>⚗ Método: {ex.metodo || '-'}</span>
           </div>
         </div>
@@ -2762,9 +2617,7 @@ function MobileExerciseCard({
 
       <div style={mobileStyles.videoCard}>
         {videoEmbed ? (
-          String(videoEmbed)
-            .toLowerCase()
-            .match(/\.(mp4|webm|ogg)(\?|$)/) ? (
+          String(videoEmbed).toLowerCase().match(/\.(mp4|webm|ogg)(\?|$)/) ? (
             <video
               src={videoEmbed}
               controls
@@ -2838,18 +2691,10 @@ function MobileExerciseCard({
               <small>{ex.repeticoes || '-'} reps</small>
               <small
                 style={{
-                  color: concluida
-                    ? '#22C55E'
-                    : emAndamento
-                    ? '#A855F7'
-                    : '#CBD5E1',
+                  color: concluida ? '#22C55E' : emAndamento ? '#A855F7' : '#CBD5E1',
                 }}
               >
-                {concluida
-                  ? '✓ Concluída'
-                  : emAndamento
-                  ? 'Em andamento'
-                  : 'Pendente'}
+                {concluida ? '✓ Concluída' : emAndamento ? 'Em andamento' : 'Pendente'}
               </small>
             </button>
           );
@@ -2859,16 +2704,16 @@ function MobileExerciseCard({
       <div style={mobileStyles.timerCard}>
         <div style={mobileStyles.timerTop}>
           <b style={{ color: '#A855F7' }}>SÉRIE {proximaSerie || 1}</b>
-          <span>Descanso: {descanso || '-'}s ✎</span>
+          <span>
+            Descanso: {descanso || '-'}s ✎
+          </span>
         </div>
 
         <div style={mobileStyles.timerCircle}>
           <div
             style={{
               ...mobileStyles.timerRing,
-              background: `conic-gradient(#7C3AED ${
-                timerDesteExercicio ? 65 : 0
-              }%, #1E293B 0%)`,
+              background: `conic-gradient(#7C3AED ${timerDesteExercicio ? 65 : 0}%, #1E293B 0%)`,
             }}
           >
             <div style={mobileStyles.timerInner}>
@@ -2914,9 +2759,7 @@ function MobileExerciseCard({
         <textarea
           style={mobileStyles.textareaMobile}
           placeholder="Como foi a execução?"
-          value={
-            perfil?.tipo === 'aluno' ? ex.obsAluno || '' : ex.obsProfessor || ''
-          }
+          value={perfil?.tipo === 'aluno' ? ex.obsAluno || '' : ex.obsProfessor || ''}
           onChange={(e) =>
             onAtualizar(
               perfil?.tipo === 'aluno' ? 'obsAluno' : 'obsProfessor',
@@ -2998,27 +2841,29 @@ function transformarLinkVideo(url: string) {
     const u = new URL(link);
     const host = u.hostname.replace('www.', '');
 
-    if (
-      host === 'youtube.com' ||
-      host === 'm.youtube.com' ||
-      host === 'music.youtube.com'
-    ) {
-      let id =
-        u.searchParams.get('v') ||
-        u.pathname.split('/shorts/')[1] ||
-        u.pathname.split('/embed/')[1] ||
-        '';
+    if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+      let id = '';
+
+      if (u.pathname === '/watch') {
+        id = u.searchParams.get('v') || '';
+      }
+
+      if (u.pathname.startsWith('/shorts/')) {
+        id = u.pathname.split('/shorts/')[1] || '';
+      }
+
+      if (u.pathname.startsWith('/embed/')) {
+        id = u.pathname.split('/embed/')[1] || '';
+      }
+
       id = id.split('?')[0].split('&')[0].split('/')[0];
-      return id
-        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`
-        : '';
+
+      return id ? `https://www.youtube.com/embed/${id}` : '';
     }
 
     if (host === 'youtu.be') {
       const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
-      return id
-        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`
-        : '';
+      return id ? `https://www.youtube.com/embed/${id}` : '';
     }
 
     if (host === 'vimeo.com') {
@@ -3028,14 +2873,6 @@ function transformarLinkVideo(url: string) {
 
     return link;
   } catch {
-    const watch = link.match(/[?&]v=([^&]+)/);
-    if (watch?.[1])
-      return `https://www.youtube.com/embed/${watch[1]}?rel=0&modestbranding=1`;
-
-    const short = link.match(/youtu\.be\/([^?&/]+)/);
-    if (short?.[1])
-      return `https://www.youtube.com/embed/${short[1]}?rel=0&modestbranding=1`;
-
     return '';
   }
 }
@@ -3397,6 +3234,8 @@ const mobileStyles: any = {
   },
 };
 
+
+
 function normalizarUrlVideo(url: string) {
   if (!url) return '';
 
@@ -3435,7 +3274,11 @@ function VideoExercicio({ url }: { url: string }) {
   const videoUrl = normalizarUrlVideo(url);
 
   if (!videoUrl) {
-    return <div style={styles.videoEmpty}>Sem link de vídeo disponível</div>;
+    return (
+      <div style={styles.videoEmpty}>
+        Sem link de vídeo disponível
+      </div>
+    );
   }
 
   const isMp4 = videoUrl.toLowerCase().includes('.mp4');
@@ -3443,7 +3286,11 @@ function VideoExercicio({ url }: { url: string }) {
   return (
     <div style={styles.videoBox}>
       {isMp4 ? (
-        <video src={videoUrl} controls style={styles.videoFrame} />
+        <video
+          src={videoUrl}
+          controls
+          style={styles.videoFrame}
+        />
       ) : (
         <iframe
           src={videoUrl}
@@ -3457,12 +3304,10 @@ function VideoExercicio({ url }: { url: string }) {
   );
 }
 
+
 function MenuItem({ label, icon, ativo, onClick }: any) {
   return (
-    <button
-      style={ativo ? styles.sideMenuItemActive : styles.sideMenuItem}
-      onClick={onClick}
-    >
+    <button style={ativo ? styles.sideMenuItemActive : styles.sideMenuItem} onClick={onClick}>
       <span>{icon}</span>
       <b>{label}</b>
     </button>
@@ -4526,8 +4371,7 @@ const styles: any = {
   sideMenuItemActive: {
     width: '100%',
     border: '1px solid #7C3AED',
-    background:
-      'linear-gradient(135deg,rgba(124,58,237,.45),rgba(147,51,234,.28))',
+    background: 'linear-gradient(135deg,rgba(124,58,237,.45),rgba(147,51,234,.28))',
     color: 'white',
     borderRadius: 16,
     padding: '14px 14px',
@@ -4593,5 +4437,6 @@ const styles: any = {
     margin: '14px 0',
     fontWeight: 800,
     textAlign: 'center',
-  },
+  }
 };
+
