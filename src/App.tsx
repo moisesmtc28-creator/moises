@@ -1545,7 +1545,7 @@ export default function App() {
 
                   <div>
                     <b>{perfil?.nome || 'Aluno'}</b>
-                    <small style={{ display: 'block', color: '#94A3B8' }}>{perfil?.email}</small>
+                    <small style={{ display: 'block', color: '#CBD5E1' }}>{perfil?.email}</small>
                     <span style={online ? styles.sideOnline : styles.sideOffline}>
                       {online ? 'Online' : 'Offline'}
                     </span>
@@ -2378,8 +2378,8 @@ export default function App() {
                     <div
                       style={{
                         ...styles.exercise,
-                        border: '2px solid #2563eb',
-                        background: '#eff6ff',
+                        border: '2px solid #7C3AED',
+                        background: 'linear-gradient(135deg,#182235,#0F172A)',
                       }}
                     >
                       <h3>Novo exercício</h3>
@@ -2972,7 +2972,7 @@ const mobileStyles: any = {
     cursor: 'pointer',
   },
   heroCard: {
-    background: 'linear-gradient(135deg,#111827,#0F172A)',
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
     border: '1px solid #1F2937',
     borderRadius: 26,
     padding: 18,
@@ -3285,7 +3285,7 @@ const mobileStyles: any = {
     border: '1px solid #64748B',
   },
   textSoft: {
-    color: '#94A3B8',
+    color: '#CBD5E1',
     display: 'block',
     marginTop: 3,
   },
@@ -3714,14 +3714,14 @@ function MiniGrafico({ titulo, dados, campo, sufixo }: any) {
       <svg width="280" height="105" viewBox="0 0 280 105">
         <polyline
           fill="none"
-          stroke="#2563eb"
+          stroke="#7C3AED"
           strokeWidth="4"
           points={coords}
         />
         {valores.map((p, i) => {
           const x = (i / (valores.length - 1)) * 260;
           const y = 90 - ((p.valor - min) / range) * 75;
-          return <circle key={i} cx={x} cy={y} r="4" fill="#16a34a" />;
+          return <circle key={i} cx={x} cy={y} r="4" fill="#22C55E" />;
         })}
       </svg>
       <small>
@@ -3753,21 +3753,21 @@ const styles: any = {
     flexWrap: 'wrap',
   },
   card: {
-    background: '#111827',
+    background: 'linear-gradient(135deg,#182235,#101827)',
     borderRadius: 24,
     padding: 24,
     marginBottom: 24,
-    border: '1px solid #243041',
-    boxShadow: '0 0 20px rgba(124,58,237,0.15)',
+    border: '1px solid #3B4A63',
+    boxShadow: '0 0 28px rgba(124,58,237,0.28)',
     color: 'white',
   },
   cardCompacto: {
-    background: '#111827',
+    background: 'linear-gradient(135deg,#182235,#101827)',
     borderRadius: 24,
     padding: 24,
     maxWidth: 500,
     margin: '40px auto',
-    border: '1px solid #243041',
+    border: '1px solid #3B4A63',
     color: 'white',
   },
   grid2: {
@@ -3777,9 +3777,9 @@ const styles: any = {
   },
   treinoTabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 15 },
   tab: {
-    background: '#111827',
-    border: '1px solid #243041',
-    color: '#CBD5E1',
+    background: '#182235',
+    border: '1px solid #3B4A63',
+    color: '#E5E7EB',
     borderRadius: 14,
     padding: '12px 18px',
     fontWeight: 700,
@@ -3806,8 +3806,8 @@ const styles: any = {
     flexWrap: 'wrap',
   },
   exercise: {
-    background: '#111827',
-    border: '1px solid #243041',
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
+    border: '1px solid #3B4A63',
     borderRadius: 22,
     padding: 20,
     marginBottom: 20,
@@ -3826,15 +3826,15 @@ const styles: any = {
     cursor: 'pointer',
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#F8FAFC',
     textAlign: 'left',
   },
   input: {
     width: '100%',
     padding: '14px 16px',
     borderRadius: 14,
-    border: '1px solid #243041',
-    background: '#111827',
+    border: '1px solid #3B4A63',
+    background: '#0F172A',
     color: 'white',
     outline: 'none',
     fontSize: 15,
@@ -3860,9 +3860,9 @@ const styles: any = {
     boxShadow: '0 0 16px rgba(124,58,237,0.35)',
   },
   secondary: {
-    background: '#1E293B',
+    background: '#243041',
     color: 'white',
-    border: '1px solid #334155',
+    border: '1px solid #475569',
     borderRadius: 12,
     padding: '12px 16px',
     fontWeight: 700,
@@ -3892,7 +3892,9 @@ const styles: any = {
   messages: {
     marginTop: 20,
     padding: 15,
-    background: '#f1f5f9',
+    background: 'linear-gradient(135deg,#111827,#182235)',
+    border: '1px solid #334155',
+    color: 'white',
     borderRadius: 12,
   },
   progressBg: {
@@ -3910,8 +3912,8 @@ const styles: any = {
   },
   ok: {
     padding: 10,
-    background: '#dcfce7',
-    color: '#166534',
+    background: 'linear-gradient(135deg,#14532D,#16A34A)',
+    color: 'white',
     borderRadius: 10,
     fontWeight: 'bold',
   },
@@ -3929,13 +3931,15 @@ const styles: any = {
   chartBox: {
     marginTop: 12,
     padding: 12,
-    background: 'white',
+    background: '#182235',
+    color: 'white',
     borderRadius: 12,
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
   },
   alunoSelecionadoBox: {
     padding: 12,
-    background: '#dbeafe',
+    background: 'linear-gradient(135deg,#1E293B,#182235)',
+    color: 'white',
     border: '1px solid #2563eb',
     borderRadius: 12,
     marginTop: 10,
@@ -3952,8 +3956,9 @@ const styles: any = {
     gap: 14,
   },
   alunoCardGerenciar: {
-    background: '#f8fafc',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 15,
     marginTop: 10,
@@ -3971,10 +3976,10 @@ const styles: any = {
     height: 55,
     borderRadius: '50%',
     objectFit: 'cover',
-    border: '2px solid #2563eb',
+    border: '2px solid #7C3AED',
   },
   contatoBox: {
-    background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+    background: 'linear-gradient(135deg,#182235,#243041)',
     border: '1px solid #93c5fd',
     borderRadius: 14,
     padding: '10px 14px',
@@ -3991,18 +3996,19 @@ const styles: any = {
     marginTop: 6,
   },
   contatoWhatsapp: {
-    color: '#16a34a',
+    color: '#22C55E',
     textDecoration: 'none',
     fontWeight: 700,
   },
   contatoEmail: {
-    color: '#2563eb',
+    color: '#60A5FA',
     textDecoration: 'none',
     fontWeight: 700,
   },
   configBox: {
-    background: '#f8fafc',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 15,
     marginBottom: 18,
@@ -4011,7 +4017,7 @@ const styles: any = {
     marginTop: 18,
     padding: 16,
     borderRadius: 16,
-    background: 'linear-gradient(135deg,#eff6ff,#f8fafc)',
+    background: 'linear-gradient(135deg,#111827,#182235)',
     border: '1px solid #bfdbfe',
   },
   kpiGrid: {
@@ -4021,8 +4027,9 @@ const styles: any = {
     marginBottom: 14,
   },
   kpiCard: {
-    background: 'white',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 12,
     display: 'flex',
@@ -4037,8 +4044,9 @@ const styles: any = {
     marginTop: 14,
   },
   panel: {
-    background: 'white',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 14,
   },
@@ -4048,10 +4056,11 @@ const styles: any = {
     gap: 10,
   },
   timelineItem: {
-    borderLeft: '4px solid #2563eb',
+    borderLeft: '4px solid #7C3AED',
     padding: '8px 10px',
     marginBottom: 10,
-    background: '#f8fafc',
+    background: '#182235',
+    color: 'white',
     borderRadius: 10,
   },
   avaliacaoLinha: {
@@ -4060,18 +4069,20 @@ const styles: any = {
     gap: 10,
     alignItems: 'center',
     flexWrap: 'wrap',
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
     borderRadius: 12,
     padding: 10,
     marginTop: 8,
-    background: '#f8fafc',
+    background: '#182235',
+    color: 'white',
   },
   graficoCard: {
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
     borderRadius: 12,
     padding: 10,
     marginTop: 10,
-    background: '#f8fafc',
+    background: '#182235',
+    color: 'white',
   },
 
   professorAdminCard: {
@@ -4080,8 +4091,9 @@ const styles: any = {
     gap: 12,
     alignItems: 'flex-start',
     flexWrap: 'wrap',
-    background: '#f8fafc',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 14,
     marginTop: 10,
@@ -4092,10 +4104,11 @@ const styles: any = {
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
     borderRadius: 12,
     marginTop: 8,
-    background: 'white',
+    background: '#182235',
+    color: 'white',
   },
   inputLine: {
     display: 'flex',
@@ -4107,15 +4120,16 @@ const styles: any = {
     marginTop: 10,
     padding: 10,
     borderRadius: 12,
-    background: 'white',
-    border: '1px solid #e2e8f0',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
   },
   adminAlunoLinha: {
     display: 'flex',
     justifyContent: 'space-between',
     gap: 10,
     padding: 8,
-    borderBottom: '1px solid #e2e8f0',
+    borderBottom: '1px solid #3B4A63',
   },
   fotoPreview: {
     width: 90,
@@ -4144,7 +4158,7 @@ const styles: any = {
   },
   mobileNavItem: {
     background: 'transparent',
-    color: '#94A3B8',
+    color: '#CBD5E1',
     border: 'none',
     borderRadius: 16,
     padding: '8px 4px',
@@ -4176,7 +4190,7 @@ const styles: any = {
     paddingBottom: 90,
   },
   mobileHero: {
-    background: 'linear-gradient(135deg,#111827,#172033)',
+    background: 'linear-gradient(135deg,#182235,#243041)',
     border: '1px solid #243041',
     borderRadius: 28,
     padding: 20,
@@ -4195,7 +4209,7 @@ const styles: any = {
     border: '2px solid #7C3AED',
   },
   mobileMuted: {
-    color: '#94A3B8',
+    color: '#CBD5E1',
   },
   mobileStatsGrid: {
     display: 'grid',
@@ -4204,8 +4218,8 @@ const styles: any = {
     marginBottom: 16,
   },
   mobileStatCard: {
-    background: '#111827',
-    border: '1px solid #243041',
+    background: 'linear-gradient(135deg,#182235,#111827)',
+    border: '1px solid #3B4A63',
     borderRadius: 20,
     padding: 14,
     color: 'white',
@@ -4215,7 +4229,7 @@ const styles: any = {
     boxShadow: '0 0 16px rgba(124,58,237,.10)',
   },
   mobileWorkoutCard: {
-    background: 'linear-gradient(135deg,#111827,#0F172A)',
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
     border: '1px solid #243041',
     borderRadius: 26,
     padding: 18,
@@ -4288,14 +4302,14 @@ const styles: any = {
     width: 40,
     height: 40,
     borderRadius: 14,
-    border: '1px solid #243041',
-    background: '#111827',
+    border: '1px solid #3B4A63',
+    background: '#0F172A',
     color: 'white',
     fontSize: 28,
     cursor: 'pointer',
   },
   sideProfile: {
-    background: 'linear-gradient(135deg,#111827,#172033)',
+    background: 'linear-gradient(135deg,#182235,#243041)',
     border: '1px solid #243041',
     borderRadius: 22,
     padding: 14,
@@ -4376,15 +4390,15 @@ const styles: any = {
     cursor: 'pointer',
   },
   statsWorkoutLine: {
-    background: '#0B1020',
-    border: '1px solid #243041',
+    background: '#182235',
+    border: '1px solid #3B4A63',
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
   },
   messageCardPremium: {
-    background: '#0B1020',
-    border: '1px solid #243041',
+    background: '#182235',
+    border: '1px solid #3B4A63',
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
