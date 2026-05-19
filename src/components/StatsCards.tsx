@@ -12,30 +12,10 @@ type StatsCardsProps = {
 };
 
 const statsPadrao: StatItem[] = [
-  {
-    titulo: 'Treinos',
-    valor: '4',
-    sub: 'essa semana',
-    icon: '🏋️',
-  },
-  {
-    titulo: 'Séries',
-    valor: '32',
-    sub: 'concluídas',
-    icon: '✅',
-  },
-  {
-    titulo: 'Tempo',
-    valor: '4h 35m',
-    sub: 'treinado',
-    icon: '⏱️',
-  },
-  {
-    titulo: 'Sequência',
-    valor: '12 dias',
-    sub: 'sem faltar',
-    icon: '🔥',
-  },
+  { titulo: 'Treinos', valor: '4', sub: 'essa semana', icon: '🏋️' },
+  { titulo: 'Séries', valor: '32', sub: 'concluídas', icon: '✅' },
+  { titulo: 'Tempo', valor: '4h 35m', sub: 'treinado', icon: '⏱️' },
+  { titulo: 'Sequência', valor: '12 dias', sub: 'sem faltar', icon: '🔥' },
 ];
 
 export default function StatsCards({ stats = statsPadrao }: StatsCardsProps) {
@@ -67,35 +47,15 @@ export default function StatsCards({ stats = statsPadrao }: StatsCardsProps) {
             }}
           >
             <div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: '#CBD5E1',
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
+              <h3 style={{ margin: 0, color: '#CBD5E1', fontSize: 14, fontWeight: 600 }}>
                 {item.titulo}
               </h3>
 
-              <h1
-                style={{
-                  fontSize: 32,
-                  margin: '10px 0 4px',
-                  color: '#FFFFFF',
-                  lineHeight: 1,
-                }}
-              >
+              <h1 style={{ fontSize: 32, margin: '10px 0 4px', color: '#FFFFFF', lineHeight: 1 }}>
                 {item.valor}
               </h1>
 
-              <small
-                style={{
-                  color: '#94A3B8',
-                }}
-              >
-                {item.sub}
-              </small>
+              <small style={{ color: '#94A3B8' }}>{item.sub}</small>
             </div>
 
             <div

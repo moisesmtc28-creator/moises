@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import PremiumCard from './PremiumCard';
 import { premiumTheme } from '../styles/PremiumTheme';
 
@@ -6,7 +7,7 @@ type ExerciseCardProps = {
   aberto: boolean;
   modo?: 'professor' | 'aluno';
   onToggle: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export default function ExerciseCard({
@@ -39,54 +40,22 @@ export default function ExerciseCard({
         }}
       >
         <div style={{ flex: 1 }}>
-          <h2
-            style={{
-              margin: 0,
-              color: 'white',
-              fontSize: 21,
-              lineHeight: 1.25,
-            }}
-          >
-            {isProfessor
-              ? '📝 '
-              : exercicio.finalizado
-              ? '✅ '
-              : '🏋️ '}
+          <h2 style={{ margin: 0, color: 'white', fontSize: 21, lineHeight: 1.25 }}>
+            {isProfessor ? '📝 ' : exercicio.finalizado ? '✅ ' : '🏋️ '}
             {exercicio.nome || 'Exercício sem nome'}
           </h2>
 
-          <small
-            style={{
-              color: '#94A3B8',
-              display: 'block',
-              marginTop: 6,
-            }}
-          >
-            {exercicio.series || '0'} séries •{' '}
-            {exercicio.repeticoes || '0'} reps
+          <small style={{ color: '#94A3B8', display: 'block', marginTop: 6 }}>
+            {exercicio.series || '0'} séries • {exercicio.repeticoes || '0'} reps
           </small>
 
           {isProfessor ? (
-            <small
-              style={{
-                color: '#A855F7',
-                display: 'block',
-                marginTop: 6,
-              }}
-            >
+            <small style={{ color: '#A855F7', display: 'block', marginTop: 6 }}>
               Modo professor: criação e edição do exercício
             </small>
           ) : (
-            <small
-              style={{
-                color: exercicio.finalizado ? '#22C55E' : '#CBD5E1',
-                display: 'block',
-                marginTop: 6,
-              }}
-            >
-              {exercicio.finalizado
-                ? 'Exercício finalizado'
-                : 'Modo aluno: execução do treino'}
+            <small style={{ color: exercicio.finalizado ? '#22C55E' : '#CBD5E1', display: 'block', marginTop: 6 }}>
+              {exercicio.finalizado ? 'Exercício finalizado' : 'Modo aluno: execução do treino'}
             </small>
           )}
         </div>
@@ -96,9 +65,7 @@ export default function ExerciseCard({
             minWidth: 34,
             height: 34,
             borderRadius: 12,
-            background: aberto
-              ? 'rgba(168,85,247,0.18)'
-              : 'rgba(255,255,255,0.06)',
+            background: aberto ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.06)',
             color: '#A855F7',
             fontSize: 24,
             display: 'flex',
@@ -112,13 +79,7 @@ export default function ExerciseCard({
       </div>
 
       {aberto && (
-        <div
-          style={{
-            marginTop: 20,
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            paddingTop: 18,
-          }}
-        >
+        <div style={{ marginTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 18 }}>
           {children}
         </div>
       )}

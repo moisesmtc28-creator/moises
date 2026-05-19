@@ -26,7 +26,6 @@ import {
 import { auth, db } from './firebase';
 
 import AlunoHeader from './components/AlunoHeader';
-import StatsCards from './components/StatsCards';
 
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
 type StatusUsuario = 'pendente' | 'aprovado' | 'bloqueado';
@@ -378,25 +377,29 @@ export default function App() {
   );
 
   const dietasVisiveis = useMemo(() => {
+    const emailUsuario = String(usuario?.email || perfil?.email || '').toLowerCase().trim();
+    const alunoAtual = perfil?.tipo === 'aluno' ? alunos[0] : alunoSelecionadoObj;
+
     if (perfil?.tipo === 'professor') {
       if (!alunoSelecionadoObj) return [];
 
-      return dietas.filter(
-        (dieta) =>
-          dieta.alunoId === alunoSelecionadoObj.id ||
-          dieta.alunoEmail === alunoSelecionadoObj.email
-      );
+      return dietas.filter((dieta) => {
+        const emailDieta = String(dieta.alunoEmail || '').toLowerCase().trim();
+        const emailAluno = String(alunoSelecionadoObj.email || '').toLowerCase().trim();
+
+        return dieta.alunoId === alunoSelecionadoObj.id || emailDieta === emailAluno;
+      });
     }
 
     if (perfil?.tipo === 'aluno') {
-      return dietas.filter(
-        (dieta) =>
-          dieta.alunoEmail?.toLowerCase() === usuario?.email?.toLowerCase()
-      );
+      return dietas.filter((dieta) => {
+        const emailDieta = String(dieta.alunoEmail || '').toLowerCase().trim();
+        return emailDieta === emailUsuario || dieta.alunoId === alunoAtual?.id;
+      });
     }
 
     return dietas;
-  }, [dietas, perfil, alunoSelecionadoObj, usuario]);
+  }, [dietas, perfil, alunoSelecionadoObj, usuario, alunos]);
 
   useEffect(() => {
     if (treinosOrdenados.length === 0) {
@@ -515,6 +518,10 @@ export default function App() {
   async function carregarTudo() {
     if (!usuario || !perfil) return;
 
+    const emailUsuario = String(usuario.email || '').trim();
+    const emailUsuarioNormalizado = emailUsuario.toLowerCase();
+    const perfilEmailNormalizado = String(perfil.email || '').trim().toLowerCase();
+
     if (isAdmin) {
       const usuariosSnap = await getDocs(collection(db, 'usuarios'));
       const listaUsuarios = usuariosSnap.docs.map((d) => {
@@ -528,77 +535,196 @@ export default function App() {
       setUsuariosSistema(listaUsuarios);
     }
 
-    let qAlunos: any;
+    const alunosRef = collection(db, 'alunos');
+    let listaAlunos: Aluno[] = [];
 
     if (perfil.tipo === 'professor') {
-      qAlunos = query(
-        collection(db, 'alunos'),
+      const qAlunosProfessor = query(
+        alunosRef,
         where('professorEmail', '==', usuario.email)
       );
-    } else if (perfil.tipo === 'aluno') {
-      qAlunos = query(
-        collection(db, 'alunos'),
-        where('email', '==', usuario.email)
-      );
-    } else {
-      qAlunos = collection(db, 'alunos');
-    }
 
-    const alunosSnap = await getDocs(qAlunos);
-    const listaAlunos = alunosSnap.docs.map((d) => {
-      const dados = d.data() as any;
-      return {
-        id: d.id,
-        ...dados,
-      } as Aluno;
-    });
+      const alunosSnap = await getDocs(qAlunosProfessor);
+      listaAlunos = alunosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Aluno;
+      });
+    } else if (perfil.tipo === 'aluno') {
+      const mapaAlunos = new Map<string, Aluno>();
+
+      const consultasAlunos = [
+        query(alunosRef, where('uid', '==', usuario.uid)),
+        query(alunosRef, where('email', '==', emailUsuario)),
+      ];
+
+      if (perfil.email && perfil.email !== usuario.email) {
+        consultasAlunos.push(query(alunosRef, where('email', '==', perfil.email)));
+      }
+
+      if (emailUsuarioNormalizado && emailUsuarioNormalizado !== emailUsuario) {
+        consultasAlunos.push(query(alunosRef, where('email', '==', emailUsuarioNormalizado)));
+      }
+
+      if (perfilEmailNormalizado && perfilEmailNormalizado !== emailUsuarioNormalizado) {
+        consultasAlunos.push(query(alunosRef, where('email', '==', perfilEmailNormalizado)));
+      }
+
+      for (const consulta of consultasAlunos) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaAlunos.set(d.id, { id: d.id, ...dados } as Aluno);
+        });
+      }
+
+      listaAlunos = Array.from(mapaAlunos.values());
+    } else {
+      const alunosSnap = await getDocs(alunosRef);
+      listaAlunos = alunosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Aluno;
+      });
+    }
 
     setAlunos(listaAlunos);
 
     const treinosRef = collection(db, 'treinos');
-    let qTreinos: any;
+    let listaTreinos: Treino[] = [];
 
     if (perfil.tipo === 'professor') {
-      qTreinos = query(
+      const qTreinosProfessor = query(
         treinosRef,
         where('professorEmail', '==', usuario.email)
       );
-    } else if (perfil.tipo === 'aluno') {
-      qTreinos = query(treinosRef, where('alunoEmail', '==', usuario.email));
-    } else {
-      qTreinos = treinosRef;
-    }
 
-    const treinosSnap = await getDocs(qTreinos);
-    const listaTreinos = treinosSnap.docs.map((d) => {
-      const dados = d.data() as any;
-      return {
-        id: d.id,
-        ...dados,
-      } as Treino;
-    });
+      const treinosSnap = await getDocs(qTreinosProfessor);
+      listaTreinos = treinosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Treino;
+      });
+    } else if (perfil.tipo === 'aluno') {
+      const alunoAtual = listaAlunos[0];
+      const mapaTreinos = new Map<string, Treino>();
+
+      const consultasTreinos = [
+        query(treinosRef, where('alunoEmail', '==', emailUsuario)),
+        query(treinosRef, where('alunoEmailNormalizado', '==', emailUsuarioNormalizado)),
+      ];
+
+      if (perfil.email && perfil.email !== usuario.email) {
+        consultasTreinos.push(query(treinosRef, where('alunoEmail', '==', perfil.email)));
+      }
+
+      if (alunoAtual?.email) {
+        consultasTreinos.push(query(treinosRef, where('alunoEmail', '==', alunoAtual.email)));
+        consultasTreinos.push(
+          query(
+            treinosRef,
+            where('alunoEmailNormalizado', '==', String(alunoAtual.email).trim().toLowerCase())
+          )
+        );
+      }
+
+      if (alunoAtual?.id) {
+        consultasTreinos.push(query(treinosRef, where('alunoId', '==', alunoAtual.id)));
+      }
+
+      if (alunoAtual?.uid) {
+        consultasTreinos.push(query(treinosRef, where('alunoUid', '==', alunoAtual.uid)));
+      }
+
+      for (const consulta of consultasTreinos) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaTreinos.set(d.id, { id: d.id, ...dados } as Treino);
+        });
+      }
+
+      listaTreinos = Array.from(mapaTreinos.values());
+    } else {
+      const treinosSnap = await getDocs(treinosRef);
+      listaTreinos = treinosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Treino;
+      });
+    }
 
     setTreinos(listaTreinos);
 
     const dietasRef = collection(db, 'dietas');
-    let qDietas: any;
+    let listaDietas: Dieta[] = [];
 
     if (perfil.tipo === 'professor') {
-      qDietas = query(
+      const qDietas = query(
         dietasRef,
         where('professorEmail', '==', usuario.email)
       );
-    } else if (perfil.tipo === 'aluno') {
-      qDietas = query(dietasRef, where('alunoEmail', '==', usuario.email));
-    } else {
-      qDietas = dietasRef;
-    }
 
-    const dietasSnap = await getDocs(qDietas);
-    const listaDietas = dietasSnap.docs.map((d) => {
-      const dados = d.data() as any;
-      return { id: d.id, ...dados } as Dieta;
-    });
+      const dietasSnap = await getDocs(qDietas);
+      listaDietas = dietasSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return { id: d.id, ...dados } as Dieta;
+      });
+    } else if (perfil.tipo === 'aluno') {
+      const alunoAtual = listaAlunos[0];
+      const mapaDietas = new Map<string, Dieta>();
+
+      const consultasDietas = [
+        query(dietasRef, where('alunoEmail', '==', emailUsuario)),
+        query(dietasRef, where('alunoEmailNormalizado', '==', emailUsuarioNormalizado)),
+      ];
+
+      if (perfil.email && perfil.email !== usuario.email) {
+        consultasDietas.push(query(dietasRef, where('alunoEmail', '==', perfil.email)));
+      }
+
+      if (alunoAtual?.email) {
+        consultasDietas.push(query(dietasRef, where('alunoEmail', '==', alunoAtual.email)));
+        consultasDietas.push(
+          query(
+            dietasRef,
+            where('alunoEmailNormalizado', '==', String(alunoAtual.email).trim().toLowerCase())
+          )
+        );
+      }
+
+      if (alunoAtual?.id) {
+        consultasDietas.push(query(dietasRef, where('alunoId', '==', alunoAtual.id)));
+      }
+
+      if (alunoAtual?.uid) {
+        consultasDietas.push(query(dietasRef, where('alunoUid', '==', alunoAtual.uid)));
+      }
+
+      for (const consulta of consultasDietas) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaDietas.set(d.id, { id: d.id, ...dados } as Dieta);
+        });
+      }
+
+      listaDietas = Array.from(mapaDietas.values());
+    } else {
+      const dietasSnap = await getDocs(dietasRef);
+      listaDietas = dietasSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return { id: d.id, ...dados } as Dieta;
+      });
+    }
 
     setDietas(listaDietas);
 
@@ -814,6 +940,7 @@ export default function App() {
         uid: alunoUid,
         nome: novoAlunoNome,
         email: novoAlunoEmail,
+        emailNormalizado: novoAlunoEmail.trim().toLowerCase(),
         tipo: 'aluno',
         status: 'aprovado',
         primeiroAcesso: true,
@@ -825,6 +952,7 @@ export default function App() {
         uid: alunoUid,
         nome: novoAlunoNome,
         email: novoAlunoEmail,
+        emailNormalizado: novoAlunoEmail.trim().toLowerCase(),
         foto: novoAlunoFoto,
         professorEmail: usuario.email,
         criadoEm: new Date(),
@@ -900,11 +1028,13 @@ export default function App() {
     try {
       await updateDoc(doc(db, 'alunos', aluno.id), {
         email: novoEmail,
+        emailNormalizado: novoEmail.trim().toLowerCase(),
       });
 
       if (aluno.uid) {
         await updateDoc(doc(db, 'usuarios', aluno.uid), {
           email: novoEmail,
+          emailNormalizado: novoEmail.trim().toLowerCase(),
         });
       }
 
@@ -919,6 +1049,7 @@ export default function App() {
         snap.docs.map((documento) =>
           updateDoc(doc(db, 'treinos', documento.id), {
             alunoEmail: novoEmail,
+            alunoEmailNormalizado: novoEmail.trim().toLowerCase(),
           })
         )
       );
@@ -999,9 +1130,12 @@ export default function App() {
       nome: nomeTreino,
       dataTreino,
       alunoId: aluno.id,
+      alunoUid: aluno.uid || '',
       alunoNome: aluno.nome,
       alunoEmail: aluno.email,
+      alunoEmailNormalizado: String(aluno.email || '').trim().toLowerCase(),
       professorEmail: usuario.email,
+      professorEmailNormalizado: String(usuario.email || '').trim().toLowerCase(),
       exercicios: [],
       mensagens: [],
       criadoEm: new Date(),
@@ -1545,9 +1679,12 @@ export default function App() {
 
     await addDoc(collection(db, 'dietas'), {
       alunoId: aluno.id,
+      alunoUid: aluno.uid || '',
       alunoNome: aluno.nome,
       alunoEmail: aluno.email,
+      alunoEmailNormalizado: String(aluno.email || '').trim().toLowerCase(),
       professorEmail: usuario.email,
+      professorEmailNormalizado: String(usuario.email || '').trim().toLowerCase(),
       nome: nomeDieta,
       objetivo: objetivoDieta,
       refeicoes: refeicoesValidas,
@@ -1784,10 +1921,8 @@ export default function App() {
       )}
 
       {perfil?.tipo === 'aluno' && abaAtiva === 'inicio' && (
-  <>
-    <AlunoHeader nome={perfil?.nome || 'Aluno'} />
-  </>
-)}
+        <AlunoHeader nome={perfil?.nome || 'Aluno'} />
+      )}
       {perfil?.tipo !== 'aluno' && (
         <div style={styles.topbar}>
           <div>
