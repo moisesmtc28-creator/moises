@@ -200,9 +200,12 @@ export default function App() {
   const [exercicioAbertoId, setExercicioAbertoId] = useState('');
   const [novoExercicioDraft, setNovoExercicioDraft] =
     useState<Exercicio | null>(null);
-  const [abaProfessor, setAbaProfessor] = useState<'treinos' | 'alunos' | 'dietas'>(
-    'treinos'
-  );
+  const [abaProfessor, setAbaProfessor] = useState<
+    | 'treinos'
+    | 'alunos'
+    | 'avaliacoes'
+    | 'dietas'
+  >('treinos');
   const [novaSenhaPrimeiroAcesso, setNovaSenhaPrimeiroAcesso] = useState('');
   const [abaAtiva, setAbaAtiva] = useState<
     | 'inicio'
@@ -2174,16 +2177,70 @@ export default function App() {
             style={abaProfessor === 'alunos' ? styles.tabAtiva : styles.tab}
             onClick={() => setAbaProfessor('alunos')}
           >
-            Gerenciar alunos
+            👥 Gerenciar alunos
+          </button>
+
+          <button
+            style={abaProfessor === 'avaliacoes' ? styles.tabAtiva : styles.tab}
+            onClick={() => setAbaProfessor('avaliacoes')}
+          >
+            📏 Avaliação física
           </button>
 
           <button
             style={abaProfessor === 'dietas' ? styles.tabAtiva : styles.tab}
             onClick={() => setAbaProfessor('dietas')}
           >
-            Dietas
+            🥗 Dietas
           </button>
         </div>
+      )}
+
+      {perfil?.tipo === 'professor' && abaProfessor === 'avaliacoes' && (
+        <Card>
+          <div style={styles.treinoHeader}>
+            <div>
+              <h2>📏 Avaliação física</h2>
+              <p>
+                Selecione um aluno para registrar medidas corporais e acompanhar a evolução.
+              </p>
+            </div>
+          </div>
+
+          <select
+            style={styles.input}
+            value={alunoSelecionado}
+            onChange={(e) => {
+              setAlunoSelecionado(e.target.value);
+              setAlunoDashId(e.target.value);
+            }}
+          >
+            <option value="">Selecione o aluno</option>
+            {alunos.map((aluno) => (
+              <option key={aluno.id} value={aluno.id}>
+                {aluno.nome} - {aluno.email}
+              </option>
+            ))}
+          </select>
+
+          {!alunoSelecionadoObj && (
+            <p style={{ marginTop: 18 }}>
+              Escolha um aluno para abrir o formulário de avaliação física.
+            </p>
+          )}
+
+          {alunoSelecionadoObj && (
+            <DashboardAluno
+              aluno={alunoSelecionadoObj}
+              dados={alunoDashboard(alunoSelecionadoObj)}
+              avaliacaoDraft={avaliacaoDraft}
+              atualizarAvaliacao={atualizarAvaliacao}
+              salvarAvaliacaoAluno={salvarAvaliacaoAluno}
+              editarAvaliacao={editarAvaliacao}
+              excluirAvaliacaoAluno={excluirAvaliacaoAluno}
+            />
+          )}
+        </Card>
       )}
 
       {perfil?.tipo === 'professor' && abaProfessor === 'dietas' && (
