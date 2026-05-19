@@ -1784,11 +1784,10 @@ export default function App() {
       )}
 
       {perfil?.tipo === 'aluno' && abaAtiva === 'inicio' && (
-        <>
-          <AlunoHeader nome={perfil?.nome || 'Aluno'} />
-          <StatsCards />
-        </>
-      )}
+  <>
+    <AlunoHeader nome={perfil?.nome || 'Aluno'} />
+  </>
+)}
       {perfil?.tipo !== 'aluno' && (
         <div style={styles.topbar}>
           <div>
