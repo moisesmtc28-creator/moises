@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -26,6 +25,7 @@ import {
 import { auth, db } from './firebase';
 
 import AlunoHeader from './components/AlunoHeader';
+import StatsCards from './components/StatsCards';
 
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
 type StatusUsuario = 'pendente' | 'aprovado' | 'bloqueado';
@@ -57,31 +57,16 @@ type ConfigSistema = {
 type AvaliacaoFisica = {
   id: string;
   data: string;
-
   peso: string;
   altura: string;
-  imc: string;
-
-  gordura: string;
-  massaMagra: string;
-
   cintura: string;
-  abdomen: string;
   quadril: string;
   torax: string;
-
-  bracoDireito: string;
-  bracoEsquerdo: string;
-
-  antebracoDireito: string;
-  antebracoEsquerdo: string;
-
-  coxaDireita: string;
-  coxaEsquerda: string;
-
-  panturrilhaDireita: string;
-  panturrilhaEsquerda: string;
-
+  braco: string;
+  coxa: string;
+  gordura: string;
+  massaMagra: string;
+  imc: string;
   observacoes: string;
 };
 
@@ -129,23 +114,8 @@ type Treino = {
   criadoEm?: any;
 };
 
-type Refeicao = {
-  horario: string;
-  nome: string;
-  alimentos: string;
-  observacoes: string;
-};
-
-type Dieta = {
-  id: string;
-  alunoId: string;
-  alunoNome: string;
-  alunoEmail: string;
+type ModeloExercicio = Exercicio & {
   professorEmail: string;
-  nome: string;
-  objetivo: string;
-  refeicoes: Refeicao[];
-  observacoes: string;
   criadoEm?: any;
 };
 
@@ -170,7 +140,7 @@ export default function App() {
     const cache = localStorage.getItem(CACHE_TREINOS);
     return cache ? JSON.parse(cache) : [];
   });
-  const [dietas, setDietas] = useState<Dieta[]>([]);
+  const [modelosExercicios, setModelosExercicios] = useState<ModeloExercicio[]>([]);
 
   const [novoAlunoNome, setNovoAlunoNome] = useState('');
   const [novoAlunoEmail, setNovoAlunoEmail] = useState('');
@@ -199,23 +169,11 @@ export default function App() {
   const [exercicioAbertoId, setExercicioAbertoId] = useState('');
   const [novoExercicioDraft, setNovoExercicioDraft] =
     useState<Exercicio | null>(null);
-  const [abaProfessor, setAbaProfessor] = useState<
-    | 'treinos'
-    | 'alunos'
-    | 'avaliacoes'
-    | 'dietas'
-  >('treinos');
+  const [abaProfessor, setAbaProfessor] = useState<'treinos' | 'alunos'>(
+    'treinos'
+  );
   const [novaSenhaPrimeiroAcesso, setNovaSenhaPrimeiroAcesso] = useState('');
-  const [abaAtiva, setAbaAtiva] = useState<
-    | 'inicio'
-    | 'treinos'
-    | 'estatisticas'
-    | 'avaliacoes'
-    | 'dieta'
-    | 'mensagens'
-    | 'configuracoes'
-    | 'perfil'
-  >('inicio');
+  const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'treinos' | 'estatisticas' | 'avaliacoes' | 'mensagens' | 'configuracoes' | 'perfil'>('inicio');
   const [menuLateralAberto, setMenuLateralAberto] = useState(false);
 
   const [configSistema, setConfigSistema] = useState<ConfigSistema>({
@@ -231,43 +189,18 @@ export default function App() {
   const [avaliacaoDraft, setAvaliacaoDraft] = useState<AvaliacaoFisica>({
     id: '',
     data: new Date().toISOString().slice(0, 10),
-
     peso: '',
     altura: '',
-    imc: '',
-
-    gordura: '',
-    massaMagra: '',
-
     cintura: '',
-    abdomen: '',
     quadril: '',
     torax: '',
-
-    bracoDireito: '',
-    bracoEsquerdo: '',
-
-    antebracoDireito: '',
-    antebracoEsquerdo: '',
-
-    coxaDireita: '',
-    coxaEsquerda: '',
-
-    panturrilhaDireita: '',
-    panturrilhaEsquerda: '',
-
+    braco: '',
+    coxa: '',
+    gordura: '',
+    massaMagra: '',
+    imc: '',
     observacoes: '',
   });
-
-  const [nomeDieta, setNomeDieta] = useState('');
-  const [objetivoDieta, setObjetivoDieta] = useState('');
-  const [observacoesDieta, setObservacoesDieta] = useState('');
-  const [refeicoesDieta, setRefeicoesDieta] = useState<Refeicao[]>([
-    { horario: '07:00', nome: 'Café da manhã', alimentos: '', observacoes: '' },
-    { horario: '12:00', nome: 'Almoço', alimentos: '', observacoes: '' },
-    { horario: '16:00', nome: 'Lanche', alimentos: '', observacoes: '' },
-    { horario: '19:00', nome: 'Jantar', alimentos: '', observacoes: '' },
-  ]);
 
   const adminEmailsAtivos = useMemo(() => {
     const listaConfig = (configSistema.admins || []).map((email) =>
@@ -304,7 +237,7 @@ export default function App() {
         setPerfil(null);
         setAlunos([]);
         setTreinos([]);
-        setDietas([]);
+        setModelosExercicios([]);
         setUsuariosSistema([]);
       }
     });
@@ -375,31 +308,6 @@ export default function App() {
       ),
     [treinosVisiveis]
   );
-
-  const dietasVisiveis = useMemo(() => {
-    const emailUsuario = String(usuario?.email || perfil?.email || '').toLowerCase().trim();
-    const alunoAtual = perfil?.tipo === 'aluno' ? alunos[0] : alunoSelecionadoObj;
-
-    if (perfil?.tipo === 'professor') {
-      if (!alunoSelecionadoObj) return [];
-
-      return dietas.filter((dieta) => {
-        const emailDieta = String(dieta.alunoEmail || '').toLowerCase().trim();
-        const emailAluno = String(alunoSelecionadoObj.email || '').toLowerCase().trim();
-
-        return dieta.alunoId === alunoSelecionadoObj.id || emailDieta === emailAluno;
-      });
-    }
-
-    if (perfil?.tipo === 'aluno') {
-      return dietas.filter((dieta) => {
-        const emailDieta = String(dieta.alunoEmail || '').toLowerCase().trim();
-        return emailDieta === emailUsuario || dieta.alunoId === alunoAtual?.id;
-      });
-    }
-
-    return dietas;
-  }, [dietas, perfil, alunoSelecionadoObj, usuario, alunos]);
 
   useEffect(() => {
     if (treinosOrdenados.length === 0) {
@@ -518,10 +426,6 @@ export default function App() {
   async function carregarTudo() {
     if (!usuario || !perfil) return;
 
-    const emailUsuario = String(usuario.email || '').trim();
-    const emailUsuarioNormalizado = emailUsuario.toLowerCase();
-    const perfilEmailNormalizado = String(perfil.email || '').trim().toLowerCase();
-
     if (isAdmin) {
       const usuariosSnap = await getDocs(collection(db, 'usuarios'));
       const listaUsuarios = usuariosSnap.docs.map((d) => {
@@ -535,198 +439,82 @@ export default function App() {
       setUsuariosSistema(listaUsuarios);
     }
 
-    const alunosRef = collection(db, 'alunos');
-    let listaAlunos: Aluno[] = [];
+    let qAlunos: any;
 
     if (perfil.tipo === 'professor') {
-      const qAlunosProfessor = query(
-        alunosRef,
+      qAlunos = query(
+        collection(db, 'alunos'),
         where('professorEmail', '==', usuario.email)
       );
-
-      const alunosSnap = await getDocs(qAlunosProfessor);
-      listaAlunos = alunosSnap.docs.map((d) => {
-        const dados = d.data() as any;
-        return {
-          id: d.id,
-          ...dados,
-        } as Aluno;
-      });
     } else if (perfil.tipo === 'aluno') {
-      const mapaAlunos = new Map<string, Aluno>();
-
-      const consultasAlunos = [
-        query(alunosRef, where('uid', '==', usuario.uid)),
-        query(alunosRef, where('email', '==', emailUsuario)),
-      ];
-
-      if (perfil.email && perfil.email !== usuario.email) {
-        consultasAlunos.push(query(alunosRef, where('email', '==', perfil.email)));
-      }
-
-      if (emailUsuarioNormalizado && emailUsuarioNormalizado !== emailUsuario) {
-        consultasAlunos.push(query(alunosRef, where('email', '==', emailUsuarioNormalizado)));
-      }
-
-      if (perfilEmailNormalizado && perfilEmailNormalizado !== emailUsuarioNormalizado) {
-        consultasAlunos.push(query(alunosRef, where('email', '==', perfilEmailNormalizado)));
-      }
-
-      for (const consulta of consultasAlunos) {
-        const snap = await getDocs(consulta);
-        snap.docs.forEach((d) => {
-          const dados = d.data() as any;
-          mapaAlunos.set(d.id, { id: d.id, ...dados } as Aluno);
-        });
-      }
-
-      listaAlunos = Array.from(mapaAlunos.values());
+      qAlunos = query(
+        collection(db, 'alunos'),
+        where('email', '==', usuario.email)
+      );
     } else {
-      const alunosSnap = await getDocs(alunosRef);
-      listaAlunos = alunosSnap.docs.map((d) => {
-        const dados = d.data() as any;
-        return {
-          id: d.id,
-          ...dados,
-        } as Aluno;
-      });
+      qAlunos = collection(db, 'alunos');
     }
+
+    const alunosSnap = await getDocs(qAlunos);
+    const listaAlunos = alunosSnap.docs.map((d) => {
+      const dados = d.data() as any;
+      return {
+        id: d.id,
+        ...dados,
+      } as Aluno;
+    });
 
     setAlunos(listaAlunos);
 
     const treinosRef = collection(db, 'treinos');
-    let listaTreinos: Treino[] = [];
+    let qTreinos: any;
 
     if (perfil.tipo === 'professor') {
-      const qTreinosProfessor = query(
+      qTreinos = query(
         treinosRef,
         where('professorEmail', '==', usuario.email)
       );
-
-      const treinosSnap = await getDocs(qTreinosProfessor);
-      listaTreinos = treinosSnap.docs.map((d) => {
-        const dados = d.data() as any;
-        return {
-          id: d.id,
-          ...dados,
-        } as Treino;
-      });
     } else if (perfil.tipo === 'aluno') {
-      const alunoAtual = listaAlunos[0];
-      const mapaTreinos = new Map<string, Treino>();
-
-      const consultasTreinos = [
-        query(treinosRef, where('alunoEmail', '==', emailUsuario)),
-        query(treinosRef, where('alunoEmailNormalizado', '==', emailUsuarioNormalizado)),
-      ];
-
-      if (perfil.email && perfil.email !== usuario.email) {
-        consultasTreinos.push(query(treinosRef, where('alunoEmail', '==', perfil.email)));
-      }
-
-      if (alunoAtual?.email) {
-        consultasTreinos.push(query(treinosRef, where('alunoEmail', '==', alunoAtual.email)));
-        consultasTreinos.push(
-          query(
-            treinosRef,
-            where('alunoEmailNormalizado', '==', String(alunoAtual.email).trim().toLowerCase())
-          )
-        );
-      }
-
-      if (alunoAtual?.id) {
-        consultasTreinos.push(query(treinosRef, where('alunoId', '==', alunoAtual.id)));
-      }
-
-      if (alunoAtual?.uid) {
-        consultasTreinos.push(query(treinosRef, where('alunoUid', '==', alunoAtual.uid)));
-      }
-
-      for (const consulta of consultasTreinos) {
-        const snap = await getDocs(consulta);
-        snap.docs.forEach((d) => {
-          const dados = d.data() as any;
-          mapaTreinos.set(d.id, { id: d.id, ...dados } as Treino);
-        });
-      }
-
-      listaTreinos = Array.from(mapaTreinos.values());
+      qTreinos = query(treinosRef, where('alunoEmail', '==', usuario.email));
     } else {
-      const treinosSnap = await getDocs(treinosRef);
-      listaTreinos = treinosSnap.docs.map((d) => {
-        const dados = d.data() as any;
-        return {
-          id: d.id,
-          ...dados,
-        } as Treino;
-      });
+      qTreinos = treinosRef;
     }
+
+    const treinosSnap = await getDocs(qTreinos);
+    const listaTreinos = treinosSnap.docs.map((d) => {
+      const dados = d.data() as any;
+      return {
+        id: d.id,
+        ...dados,
+      } as Treino;
+    });
 
     setTreinos(listaTreinos);
 
-    const dietasRef = collection(db, 'dietas');
-    let listaDietas: Dieta[] = [];
-
     if (perfil.tipo === 'professor') {
-      const qDietas = query(
-        dietasRef,
-        where('professorEmail', '==', usuario.email)
+      const modelosSnap = await getDocs(
+        query(
+          collection(db, 'modelosExercicios'),
+          where('professorEmail', '==', usuario.email)
+        )
       );
 
-      const dietasSnap = await getDocs(qDietas);
-      listaDietas = dietasSnap.docs.map((d) => {
+      const listaModelos = modelosSnap.docs.map((d) => {
         const dados = d.data() as any;
-        return { id: d.id, ...dados } as Dieta;
+        return {
+          id: d.id,
+          ...dados,
+        } as ModeloExercicio;
       });
-    } else if (perfil.tipo === 'aluno') {
-      const alunoAtual = listaAlunos[0];
-      const mapaDietas = new Map<string, Dieta>();
 
-      const consultasDietas = [
-        query(dietasRef, where('alunoEmail', '==', emailUsuario)),
-        query(dietasRef, where('alunoEmailNormalizado', '==', emailUsuarioNormalizado)),
-      ];
-
-      if (perfil.email && perfil.email !== usuario.email) {
-        consultasDietas.push(query(dietasRef, where('alunoEmail', '==', perfil.email)));
-      }
-
-      if (alunoAtual?.email) {
-        consultasDietas.push(query(dietasRef, where('alunoEmail', '==', alunoAtual.email)));
-        consultasDietas.push(
-          query(
-            dietasRef,
-            where('alunoEmailNormalizado', '==', String(alunoAtual.email).trim().toLowerCase())
-          )
-        );
-      }
-
-      if (alunoAtual?.id) {
-        consultasDietas.push(query(dietasRef, where('alunoId', '==', alunoAtual.id)));
-      }
-
-      if (alunoAtual?.uid) {
-        consultasDietas.push(query(dietasRef, where('alunoUid', '==', alunoAtual.uid)));
-      }
-
-      for (const consulta of consultasDietas) {
-        const snap = await getDocs(consulta);
-        snap.docs.forEach((d) => {
-          const dados = d.data() as any;
-          mapaDietas.set(d.id, { id: d.id, ...dados } as Dieta);
-        });
-      }
-
-      listaDietas = Array.from(mapaDietas.values());
+      setModelosExercicios(
+        listaModelos.sort((a, b) =>
+          (a.nome || '').localeCompare(b.nome || '')
+        )
+      );
     } else {
-      const dietasSnap = await getDocs(dietasRef);
-      listaDietas = dietasSnap.docs.map((d) => {
-        const dados = d.data() as any;
-        return { id: d.id, ...dados } as Dieta;
-      });
+      setModelosExercicios([]);
     }
-
-    setDietas(listaDietas);
 
     if (perfil.tipo !== 'professor' && !treinoAbertoId && listaTreinos[0]) {
       setTreinoAbertoId(listaTreinos[0].id);
@@ -940,7 +728,6 @@ export default function App() {
         uid: alunoUid,
         nome: novoAlunoNome,
         email: novoAlunoEmail,
-        emailNormalizado: novoAlunoEmail.trim().toLowerCase(),
         tipo: 'aluno',
         status: 'aprovado',
         primeiroAcesso: true,
@@ -952,7 +739,6 @@ export default function App() {
         uid: alunoUid,
         nome: novoAlunoNome,
         email: novoAlunoEmail,
-        emailNormalizado: novoAlunoEmail.trim().toLowerCase(),
         foto: novoAlunoFoto,
         professorEmail: usuario.email,
         criadoEm: new Date(),
@@ -1028,13 +814,11 @@ export default function App() {
     try {
       await updateDoc(doc(db, 'alunos', aluno.id), {
         email: novoEmail,
-        emailNormalizado: novoEmail.trim().toLowerCase(),
       });
 
       if (aluno.uid) {
         await updateDoc(doc(db, 'usuarios', aluno.uid), {
           email: novoEmail,
-          emailNormalizado: novoEmail.trim().toLowerCase(),
         });
       }
 
@@ -1049,7 +833,6 @@ export default function App() {
         snap.docs.map((documento) =>
           updateDoc(doc(db, 'treinos', documento.id), {
             alunoEmail: novoEmail,
-            alunoEmailNormalizado: novoEmail.trim().toLowerCase(),
           })
         )
       );
@@ -1130,12 +913,9 @@ export default function App() {
       nome: nomeTreino,
       dataTreino,
       alunoId: aluno.id,
-      alunoUid: aluno.uid || '',
       alunoNome: aluno.nome,
       alunoEmail: aluno.email,
-      alunoEmailNormalizado: String(aluno.email || '').trim().toLowerCase(),
       professorEmail: usuario.email,
-      professorEmailNormalizado: String(usuario.email || '').trim().toLowerCase(),
       exercicios: [],
       mensagens: [],
       criadoEm: new Date(),
@@ -1206,6 +986,61 @@ export default function App() {
 
     setNovoExercicioDraft(null);
     setExercicioAbertoId('');
+  }
+
+  async function salvarExercicioComoModelo(exercicio: Exercicio) {
+    if (!usuario) return;
+
+    if (!exercicio.nome?.trim()) {
+      alert('Digite o nome do exercício antes de salvar como modelo.');
+      return;
+    }
+
+    await addDoc(collection(db, 'modelosExercicios'), {
+      ...exercicio,
+      id: uid(),
+      professorEmail: usuario.email,
+      seriesConcluidas: [],
+      finalizado: false,
+      cargaAtual: '',
+      ultimaCarga: '',
+      historicoCargas: [],
+      criadoEm: new Date(),
+    });
+
+    alert('Exercício salvo nos seus modelos.');
+    carregarTudo();
+  }
+
+  async function usarModeloExercicio(treino: Treino, modelo: ModeloExercicio) {
+    const novo: Exercicio = {
+      id: uid(),
+      nome: modelo.nome || '',
+      series: modelo.series || '',
+      repeticoes: modelo.repeticoes || '',
+      descanso: modelo.descanso || '',
+      cargaSugerida: modelo.cargaSugerida || '',
+      metodo: modelo.metodo || '',
+      velocidade: modelo.velocidade || '',
+      video: modelo.video || '',
+      obsProfessor: modelo.obsProfessor || '',
+      obsAluno: '',
+      cargaAtual: '',
+      ultimaCarga: '',
+      seriesConcluidas: [],
+      finalizado: false,
+      ordem: 0,
+      historicoCargas: [],
+    };
+
+    await salvarExercicios(treino, [novo, ...(treino.exercicios || [])]);
+  }
+
+  async function excluirModeloExercicio(modeloId: string) {
+    if (!confirm('Excluir este modelo de exercício?')) return;
+
+    await deleteDoc(doc(db, 'modelosExercicios', modeloId));
+    carregarTudo();
   }
 
   async function salvarExercicios(treino: Treino, exercicios: Exercicio[]) {
@@ -1580,31 +1415,16 @@ export default function App() {
     setAvaliacaoDraft({
       id: '',
       data: new Date().toISOString().slice(0, 10),
-
       peso: '',
       altura: '',
-      imc: '',
-
-      gordura: '',
-      massaMagra: '',
-
       cintura: '',
-      abdomen: '',
       quadril: '',
       torax: '',
-
-      bracoDireito: '',
-      bracoEsquerdo: '',
-
-      antebracoDireito: '',
-      antebracoEsquerdo: '',
-
-      coxaDireita: '',
-      coxaEsquerda: '',
-
-      panturrilhaDireita: '',
-      panturrilhaEsquerda: '',
-
+      braco: '',
+      coxa: '',
+      gordura: '',
+      massaMagra: '',
+      imc: '',
       observacoes: '',
     });
 
@@ -1628,89 +1448,6 @@ export default function App() {
 
   function editarAvaliacao(avaliacao: AvaliacaoFisica) {
     setAvaliacaoDraft(avaliacao);
-  }
-
-  function atualizarRefeicaoDieta(index: number, campo: keyof Refeicao, valor: string) {
-    setRefeicoesDieta((prev) =>
-      prev.map((refeicao, i) =>
-        i === index ? { ...refeicao, [campo]: valor } : refeicao
-      )
-    );
-  }
-
-  function adicionarRefeicaoDieta() {
-    setRefeicoesDieta((prev) => [
-      ...prev,
-      { horario: '', nome: '', alimentos: '', observacoes: '' },
-    ]);
-  }
-
-  function removerRefeicaoDieta(index: number) {
-    setRefeicoesDieta((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  async function salvarDietaAluno() {
-    if (!usuario) return;
-
-    if (!alunoSelecionado) {
-      alert('Selecione um aluno para criar a dieta.');
-      return;
-    }
-
-    if (!nomeDieta.trim()) {
-      alert('Digite o nome da dieta.');
-      return;
-    }
-
-    const aluno = alunos.find((a) => a.id === alunoSelecionado);
-
-    if (!aluno) {
-      alert('Aluno não encontrado.');
-      return;
-    }
-
-    const refeicoesValidas = refeicoesDieta.filter(
-      (refeicao) =>
-        refeicao.horario.trim() ||
-        refeicao.nome.trim() ||
-        refeicao.alimentos.trim() ||
-        refeicao.observacoes.trim()
-    );
-
-    await addDoc(collection(db, 'dietas'), {
-      alunoId: aluno.id,
-      alunoUid: aluno.uid || '',
-      alunoNome: aluno.nome,
-      alunoEmail: aluno.email,
-      alunoEmailNormalizado: String(aluno.email || '').trim().toLowerCase(),
-      professorEmail: usuario.email,
-      professorEmailNormalizado: String(usuario.email || '').trim().toLowerCase(),
-      nome: nomeDieta,
-      objetivo: objetivoDieta,
-      refeicoes: refeicoesValidas,
-      observacoes: observacoesDieta,
-      criadoEm: new Date(),
-    });
-
-    setNomeDieta('');
-    setObjetivoDieta('');
-    setObservacoesDieta('');
-    setRefeicoesDieta([
-      { horario: '07:00', nome: 'Café da manhã', alimentos: '', observacoes: '' },
-      { horario: '12:00', nome: 'Almoço', alimentos: '', observacoes: '' },
-      { horario: '16:00', nome: 'Lanche', alimentos: '', observacoes: '' },
-      { horario: '19:00', nome: 'Jantar', alimentos: '', observacoes: '' },
-    ]);
-
-    alert('Dieta salva para o aluno.');
-    carregarTudo();
-  }
-
-  async function excluirDieta(dietaId: string) {
-    if (!confirm('Excluir esta dieta?')) return;
-
-    await deleteDoc(doc(db, 'dietas', dietaId));
-    carregarTudo();
   }
 
   async function trocarSenhaPrimeiroAcesso() {
@@ -1895,7 +1632,7 @@ export default function App() {
 
                   <div>
                     <b>{perfil?.nome || 'Aluno'}</b>
-                    <small style={{ display: 'block', color: '#CBD5E1' }}>{perfil?.email}</small>
+                    <small style={{ display: 'block', color: '#94A3B8' }}>{perfil?.email}</small>
                     <span style={online ? styles.sideOnline : styles.sideOffline}>
                       {online ? 'Online' : 'Offline'}
                     </span>
@@ -1906,7 +1643,6 @@ export default function App() {
                 <MenuItem label="Treinos" icon="🏋️" ativo={abaAtiva === 'treinos'} onClick={() => { setAbaAtiva('treinos'); setMenuLateralAberto(false); }} />
                 <MenuItem label="Estatísticas" icon="📊" ativo={abaAtiva === 'estatisticas'} onClick={() => { setAbaAtiva('estatisticas'); setMenuLateralAberto(false); }} />
                 <MenuItem label="Avaliações" icon="📋" ativo={abaAtiva === 'avaliacoes'} onClick={() => { setAbaAtiva('avaliacoes'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Dieta" icon="🥗" ativo={abaAtiva === 'dieta'} onClick={() => { setAbaAtiva('dieta'); setMenuLateralAberto(false); }} />
                 <MenuItem label="Mensagens" icon="💬" ativo={abaAtiva === 'mensagens'} onClick={() => { setAbaAtiva('mensagens'); setMenuLateralAberto(false); }} />
                 <MenuItem label="Configurações" icon="⚙️" ativo={abaAtiva === 'configuracoes'} onClick={() => { setAbaAtiva('configuracoes'); setMenuLateralAberto(false); }} />
                 <MenuItem label="Perfil" icon="👤" ativo={abaAtiva === 'perfil'} onClick={() => { setAbaAtiva('perfil'); setMenuLateralAberto(false); }} />
@@ -1921,7 +1657,10 @@ export default function App() {
       )}
 
       {perfil?.tipo === 'aluno' && abaAtiva === 'inicio' && (
-        <AlunoHeader nome={perfil?.nome || 'Aluno'} />
+        <>
+          <AlunoHeader nome={perfil?.nome || 'Aluno'} />
+          <StatsCards />
+        </>
       )}
       {perfil?.tipo !== 'aluno' && (
         <div style={styles.topbar}>
@@ -2311,212 +2050,9 @@ export default function App() {
             style={abaProfessor === 'alunos' ? styles.tabAtiva : styles.tab}
             onClick={() => setAbaProfessor('alunos')}
           >
-            👥 Gerenciar alunos
-          </button>
-
-          <button
-            style={abaProfessor === 'avaliacoes' ? styles.tabAtiva : styles.tab}
-            onClick={() => setAbaProfessor('avaliacoes')}
-          >
-            📏 Avaliação física
-          </button>
-
-          <button
-            style={abaProfessor === 'dietas' ? styles.tabAtiva : styles.tab}
-            onClick={() => setAbaProfessor('dietas')}
-          >
-            🥗 Dietas
+            Gerenciar alunos
           </button>
         </div>
-      )}
-
-      {perfil?.tipo === 'professor' && abaProfessor === 'avaliacoes' && (
-        <Card>
-          <div style={styles.treinoHeader}>
-            <div>
-              <h2>📏 Avaliação física</h2>
-              <p>
-                Selecione um aluno para registrar medidas corporais e acompanhar a evolução.
-              </p>
-            </div>
-          </div>
-
-          <select
-            style={styles.input}
-            value={alunoSelecionado}
-            onChange={(e) => {
-              setAlunoSelecionado(e.target.value);
-              setAlunoDashId(e.target.value);
-            }}
-          >
-            <option value="">Selecione o aluno</option>
-            {alunos.map((aluno) => (
-              <option key={aluno.id} value={aluno.id}>
-                {aluno.nome} - {aluno.email}
-              </option>
-            ))}
-          </select>
-
-          {!alunoSelecionadoObj && (
-            <p style={{ marginTop: 18 }}>
-              Escolha um aluno para abrir o formulário de avaliação física.
-            </p>
-          )}
-
-          {alunoSelecionadoObj && (
-            <DashboardAluno
-              aluno={alunoSelecionadoObj}
-              dados={alunoDashboard(alunoSelecionadoObj)}
-              avaliacaoDraft={avaliacaoDraft}
-              atualizarAvaliacao={atualizarAvaliacao}
-              salvarAvaliacaoAluno={salvarAvaliacaoAluno}
-              editarAvaliacao={editarAvaliacao}
-              excluirAvaliacaoAluno={excluirAvaliacaoAluno}
-            />
-          )}
-        </Card>
-      )}
-
-      {perfil?.tipo === 'professor' && abaProfessor === 'dietas' && (
-        <Card>
-          <h2>Dietas dos alunos</h2>
-          <p>Crie uma dieta para o aluno selecionado. O aluno verá no menu lateral em Dieta.</p>
-
-          <select
-            style={styles.input}
-            value={alunoSelecionado}
-            onChange={(e) => setAlunoSelecionado(e.target.value)}
-          >
-            <option value="">Selecione o aluno</option>
-            {alunos.map((aluno) => (
-              <option key={aluno.id} value={aluno.id}>
-                {aluno.nome} - {aluno.email}
-              </option>
-            ))}
-          </select>
-
-          <div style={styles.dashboardGrid}>
-            <div style={styles.panel}>
-              <h3>Nova dieta</h3>
-
-              <label style={styles.label}>Nome da dieta</label>
-              <input
-                style={styles.input}
-                placeholder="Ex.: Dieta de ganho de massa"
-                value={nomeDieta}
-                onChange={(e) => setNomeDieta(e.target.value)}
-              />
-
-              <label style={styles.label}>Objetivo</label>
-              <input
-                style={styles.input}
-                placeholder="Ex.: perda de gordura, manutenção, hipertrofia"
-                value={objetivoDieta}
-                onChange={(e) => setObjetivoDieta(e.target.value)}
-              />
-
-              <h3>Refeições</h3>
-
-              {refeicoesDieta.map((refeicao, index) => (
-                <div key={index} style={styles.refeicaoCard}>
-                  <div style={styles.formGrid}>
-                    <input
-                      style={styles.input}
-                      placeholder="Horário"
-                      value={refeicao.horario}
-                      onChange={(e) =>
-                        atualizarRefeicaoDieta(index, 'horario', e.target.value)
-                      }
-                    />
-
-                    <input
-                      style={styles.input}
-                      placeholder="Nome da refeição"
-                      value={refeicao.nome}
-                      onChange={(e) =>
-                        atualizarRefeicaoDieta(index, 'nome', e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <textarea
-                    style={styles.input}
-                    placeholder="Alimentos e quantidades"
-                    value={refeicao.alimentos}
-                    onChange={(e) =>
-                      atualizarRefeicaoDieta(index, 'alimentos', e.target.value)
-                    }
-                  />
-
-                  <textarea
-                    style={styles.input}
-                    placeholder="Observações da refeição"
-                    value={refeicao.observacoes}
-                    onChange={(e) =>
-                      atualizarRefeicaoDieta(index, 'observacoes', e.target.value)
-                    }
-                  />
-
-                  <button
-                    style={styles.danger}
-                    onClick={() => removerRefeicaoDieta(index)}
-                  >
-                    Remover refeição
-                  </button>
-                </div>
-              ))}
-
-              <button style={styles.secondary} onClick={adicionarRefeicaoDieta}>
-                + Adicionar refeição
-              </button>
-
-              <label style={styles.label}>Observações gerais</label>
-              <textarea
-                style={styles.input}
-                placeholder="Orientações gerais da dieta"
-                value={observacoesDieta}
-                onChange={(e) => setObservacoesDieta(e.target.value)}
-              />
-
-              <button style={styles.primary} onClick={salvarDietaAluno}>
-                Salvar dieta
-              </button>
-            </div>
-
-            <div style={styles.panel}>
-              <h3>Dietas salvas</h3>
-              {!alunoSelecionadoObj && <p>Selecione um aluno para ver as dietas.</p>}
-              {alunoSelecionadoObj && dietasVisiveis.length === 0 && (
-                <p>Nenhuma dieta cadastrada para este aluno.</p>
-              )}
-
-              {dietasVisiveis.map((dieta) => (
-                <div key={dieta.id} style={styles.dietaCard}>
-                  <h3>{dieta.nome}</h3>
-                  <p><b>Objetivo:</b> {dieta.objetivo || '-'}</p>
-                  <small>{dieta.alunoNome} - {dieta.alunoEmail}</small>
-
-                  {(dieta.refeicoes || []).map((refeicao, index) => (
-                    <div key={index} style={styles.refeicaoResumo}>
-                      <b>{refeicao.horario} - {refeicao.nome}</b>
-                      <p>{refeicao.alimentos || '-'}</p>
-                      {refeicao.observacoes && <small>{refeicao.observacoes}</small>}
-                    </div>
-                  ))}
-
-                  {dieta.observacoes && <p>{dieta.observacoes}</p>}
-
-                  <button
-                    style={styles.danger}
-                    onClick={() => excluirDieta(dieta.id)}
-                  >
-                    Excluir dieta
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
       )}
 
       {perfil?.tipo === 'professor' && abaProfessor === 'alunos' && (
@@ -2753,36 +2289,6 @@ export default function App() {
         </Card>
       )}
 
-      {perfil?.tipo === 'aluno' && abaAtiva === 'dieta' && (
-        <Card>
-          <h2>Dieta</h2>
-          <p style={styles.mobileMuted}>Sua dieta criada pelo professor aparecerá aqui.</p>
-
-          {dietasVisiveis.length === 0 && (
-            <p>Nenhuma dieta cadastrada ainda.</p>
-          )}
-
-          {dietasVisiveis.map((dieta) => (
-            <div key={dieta.id} style={styles.dietaCard}>
-              <h3>{dieta.nome}</h3>
-              <p><b>Objetivo:</b> {dieta.objetivo || '-'}</p>
-
-              {(dieta.refeicoes || []).map((refeicao, index) => (
-                <div key={index} style={styles.refeicaoResumo}>
-                  <b>{refeicao.horario} - {refeicao.nome}</b>
-                  <p>{refeicao.alimentos || '-'}</p>
-                  {refeicao.observacoes && <small>{refeicao.observacoes}</small>}
-                </div>
-              ))}
-
-              {dieta.observacoes && (
-                <p><b>Observações:</b> {dieta.observacoes}</p>
-              )}
-            </div>
-          ))}
-        </Card>
-      )}
-
       {perfil?.tipo === 'aluno' && abaAtiva === 'mensagens' && (
         <Card>
           <h2>Mensagens</h2>
@@ -2928,14 +2434,12 @@ export default function App() {
                         </button>
                       )}
 
-                      {perfil?.tipo === 'aluno' && (
-                        <button
-                          style={styles.secondary}
-                          onClick={() => reiniciarTreino(treino)}
-                        >
-                          Reiniciar treino
-                        </button>
-                      )}
+                      <button
+                        style={styles.secondary}
+                        onClick={() => reiniciarTreino(treino)}
+                      >
+                        Reiniciar treino
+                      </button>
 
                       {perfil?.tipo === 'professor' && (
                         <button
@@ -2957,12 +2461,52 @@ export default function App() {
                     </p>
                   )}
 
+                  {perfil?.tipo === 'professor' && modelosExercicios.length > 0 && (
+                    <div style={styles.modelosBox}>
+                      <div style={styles.modelosHeader}>
+                        <div>
+                          <h3 style={{ margin: 0 }}>Meus exercícios salvos</h3>
+                          <small>Use apenas os modelos criados pelo professor logado.</small>
+                        </div>
+                      </div>
+
+                      <div style={styles.modelosGrid}>
+                        {modelosExercicios.map((modelo) => (
+                          <div key={modelo.id} style={styles.modeloCard}>
+                            <b>{modelo.nome || 'Exercício sem nome'}</b>
+                            <small>
+                              {modelo.series || '-'} séries | {modelo.repeticoes || '-'} reps | descanso {modelo.descanso || '-'}s
+                            </small>
+
+                            {modelo.metodo && <small>Método: {modelo.metodo}</small>}
+
+                            <div>
+                              <button
+                                style={styles.success}
+                                onClick={() => usarModeloExercicio(treino, modelo)}
+                              >
+                                Usar neste treino
+                              </button>
+
+                              <button
+                                style={styles.danger}
+                                onClick={() => excluirModeloExercicio(modelo.id)}
+                              >
+                                Excluir modelo
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {perfil?.tipo === 'professor' && novoExercicioDraft && (
                     <div
                       style={{
                         ...styles.exercise,
-                        border: '2px solid #7C3AED',
-                        background: 'linear-gradient(135deg,#182235,#0F172A)',
+                        border: '2px solid #2563eb',
+                        background: '#eff6ff',
                       }}
                     >
                       <h3>Novo exercício</h3>
@@ -3091,6 +2635,7 @@ export default function App() {
                         }
                         onFinalizar={() => finalizarExercicio(treino, ex)}
                         onExcluir={() => excluirExercicio(treino, ex.id)}
+                        onSalvarModelo={() => salvarExercicioComoModelo(ex)}
                         onFecharTimer={() => setTimerAtivo(false)}
                       />
                     );
@@ -3143,6 +2688,7 @@ function MobileExerciseCard({
   onMarcarSerie,
   onFinalizar,
   onExcluir,
+  onSalvarModelo,
   onFecharTimer,
 }: any) {
   const totalSeries = Number(ex.series) || 0;
@@ -3254,8 +2800,6 @@ function MobileExerciseCard({
         )}
       </div>
 
-      {perfil?.tipo === 'aluno' && (
-        <>
       <div style={mobileStyles.sectionHeader}>
         <h3 style={{ margin: 0 }}>Séries</h3>
         <button style={mobileStyles.historyButton}>↗ Ver histórico</button>
@@ -3337,8 +2881,6 @@ function MobileExerciseCard({
           </button>
         </div>
       </div>
-        </>
-      )}
 
       <details style={mobileStyles.dropCard}>
         <summary style={mobileStyles.dropSummary}>
@@ -3416,17 +2958,19 @@ function MobileExerciseCard({
             onChange={(e) => onAtualizar('metodo', e.target.value)}
           />
 
+          <button style={mobileStyles.secondaryButton} onClick={onSalvarModelo}>
+            Salvar como modelo
+          </button>
+
           <button style={mobileStyles.deleteButton} onClick={onExcluir}>
             Excluir exercício
           </button>
         </details>
       )}
 
-      {perfil?.tipo === 'aluno' && (
-        <button style={mobileStyles.finishButton} onClick={onFinalizar}>
-          ✓ Finalizar exercício
-        </button>
-      )}
+      <button style={mobileStyles.finishButton} onClick={onFinalizar}>
+        ✓ Finalizar exercício
+      </button>
     </div>
   );
 }
@@ -3561,7 +3105,7 @@ const mobileStyles: any = {
     cursor: 'pointer',
   },
   heroCard: {
-    background: 'linear-gradient(135deg,#182235,#0F172A)',
+    background: 'linear-gradient(135deg,#111827,#0F172A)',
     border: '1px solid #1F2937',
     borderRadius: 26,
     padding: 18,
@@ -3827,6 +3371,17 @@ const mobileStyles: any = {
     boxShadow: '0 0 24px rgba(124,58,237,.35)',
     cursor: 'pointer',
   },
+  secondaryButton: {
+    width: '100%',
+    border: '1px solid #334155',
+    borderRadius: 14,
+    padding: '14px 16px',
+    color: 'white',
+    fontWeight: 800,
+    background: '#1E293B',
+    marginTop: 10,
+    cursor: 'pointer',
+  },
   deleteButton: {
     width: '100%',
     border: 'none',
@@ -3836,6 +3391,7 @@ const mobileStyles: any = {
     fontWeight: 800,
     background: 'linear-gradient(135deg,#DC2626,#EF4444)',
     marginTop: 10,
+    cursor: 'pointer',
   },
   exerciseMini: {
     background: 'linear-gradient(135deg,#111827,#0B1020)',
@@ -3874,7 +3430,7 @@ const mobileStyles: any = {
     border: '1px solid #64748B',
   },
   textSoft: {
-    color: '#CBD5E1',
+    color: '#94A3B8',
     display: 'block',
     marginTop: 3,
   },
@@ -4096,62 +3652,20 @@ function DashboardAluno({
               atualizar={atualizarAvaliacao}
             />
             <CampoAvaliacao
-              label="Abdômen cm"
-              campo="abdomen"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
               label="Tórax cm"
               campo="torax"
               draft={avaliacaoDraft}
               atualizar={atualizarAvaliacao}
             />
             <CampoAvaliacao
-              label="Braço direito cm"
-              campo="bracoDireito"
+              label="Braço cm"
+              campo="braco"
               draft={avaliacaoDraft}
               atualizar={atualizarAvaliacao}
             />
             <CampoAvaliacao
-              label="Braço esquerdo cm"
-              campo="bracoEsquerdo"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
-              label="Antebraço direito cm"
-              campo="antebracoDireito"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
-              label="Antebraço esquerdo cm"
-              campo="antebracoEsquerdo"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
-              label="Coxa direita cm"
-              campo="coxaDireita"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
-              label="Coxa esquerda cm"
-              campo="coxaEsquerda"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
-              label="Panturrilha direita cm"
-              campo="panturrilhaDireita"
-              draft={avaliacaoDraft}
-              atualizar={atualizarAvaliacao}
-            />
-            <CampoAvaliacao
-              label="Panturrilha esquerda cm"
-              campo="panturrilhaEsquerda"
+              label="Coxa cm"
+              campo="coxa"
               draft={avaliacaoDraft}
               atualizar={atualizarAvaliacao}
             />
@@ -4345,14 +3859,14 @@ function MiniGrafico({ titulo, dados, campo, sufixo }: any) {
       <svg width="280" height="105" viewBox="0 0 280 105">
         <polyline
           fill="none"
-          stroke="#7C3AED"
+          stroke="#2563eb"
           strokeWidth="4"
           points={coords}
         />
         {valores.map((p, i) => {
           const x = (i / (valores.length - 1)) * 260;
           const y = 90 - ((p.valor - min) / range) * 75;
-          return <circle key={i} cx={x} cy={y} r="4" fill="#22C55E" />;
+          return <circle key={i} cx={x} cy={y} r="4" fill="#16a34a" />;
         })}
       </svg>
       <small>
@@ -4384,21 +3898,21 @@ const styles: any = {
     flexWrap: 'wrap',
   },
   card: {
-    background: 'linear-gradient(135deg,#182235,#101827)',
+    background: '#111827',
     borderRadius: 24,
     padding: 24,
     marginBottom: 24,
-    border: '1px solid #3B4A63',
-    boxShadow: '0 0 28px rgba(124,58,237,0.28)',
+    border: '1px solid #243041',
+    boxShadow: '0 0 20px rgba(124,58,237,0.15)',
     color: 'white',
   },
   cardCompacto: {
-    background: 'linear-gradient(135deg,#182235,#101827)',
+    background: '#111827',
     borderRadius: 24,
     padding: 24,
     maxWidth: 500,
     margin: '40px auto',
-    border: '1px solid #3B4A63',
+    border: '1px solid #243041',
     color: 'white',
   },
   grid2: {
@@ -4408,9 +3922,9 @@ const styles: any = {
   },
   treinoTabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 15 },
   tab: {
-    background: '#182235',
-    border: '1px solid #3B4A63',
-    color: '#E5E7EB',
+    background: '#111827',
+    border: '1px solid #243041',
+    color: '#CBD5E1',
     borderRadius: 14,
     padding: '12px 18px',
     fontWeight: 700,
@@ -4437,8 +3951,8 @@ const styles: any = {
     flexWrap: 'wrap',
   },
   exercise: {
-    background: 'linear-gradient(135deg,#182235,#0F172A)',
-    border: '1px solid #3B4A63',
+    background: '#111827',
+    border: '1px solid #243041',
     borderRadius: 22,
     padding: 20,
     marginBottom: 20,
@@ -4451,21 +3965,51 @@ const styles: any = {
     alignItems: 'center',
     gap: 10,
   },
+  modelosBox: {
+    marginTop: 18,
+    marginBottom: 18,
+    padding: 16,
+    borderRadius: 18,
+    background: '#0F172A',
+    border: '1px solid #334155',
+    color: 'white',
+  },
+  modelosHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  modelosGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
+    gap: 12,
+  },
+  modeloCard: {
+    display: 'grid',
+    gap: 8,
+    padding: 14,
+    borderRadius: 16,
+    background: '#1E293B',
+    border: '1px solid #334155',
+  },
   exerciseTitleButton: {
     border: 'none',
     background: 'transparent',
     cursor: 'pointer',
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#F8FAFC',
+    color: '#0f172a',
     textAlign: 'left',
   },
   input: {
     width: '100%',
     padding: '14px 16px',
     borderRadius: 14,
-    border: '1px solid #3B4A63',
-    background: '#0F172A',
+    border: '1px solid #243041',
+    background: '#111827',
     color: 'white',
     outline: 'none',
     fontSize: 15,
@@ -4491,9 +4035,9 @@ const styles: any = {
     boxShadow: '0 0 16px rgba(124,58,237,0.35)',
   },
   secondary: {
-    background: '#243041',
+    background: '#1E293B',
     color: 'white',
-    border: '1px solid #475569',
+    border: '1px solid #334155',
     borderRadius: 12,
     padding: '12px 16px',
     fontWeight: 700,
@@ -4523,9 +4067,7 @@ const styles: any = {
   messages: {
     marginTop: 20,
     padding: 15,
-    background: 'linear-gradient(135deg,#111827,#182235)',
-    border: '1px solid #334155',
-    color: 'white',
+    background: '#f1f5f9',
     borderRadius: 12,
   },
   progressBg: {
@@ -4543,8 +4085,8 @@ const styles: any = {
   },
   ok: {
     padding: 10,
-    background: 'linear-gradient(135deg,#14532D,#16A34A)',
-    color: 'white',
+    background: '#dcfce7',
+    color: '#166534',
     borderRadius: 10,
     fontWeight: 'bold',
   },
@@ -4562,15 +4104,13 @@ const styles: any = {
   chartBox: {
     marginTop: 12,
     padding: 12,
-    background: '#182235',
-    color: 'white',
+    background: 'white',
     borderRadius: 12,
-    border: '1px solid #3B4A63',
+    border: '1px solid #cbd5e1',
   },
   alunoSelecionadoBox: {
     padding: 12,
-    background: 'linear-gradient(135deg,#1E293B,#182235)',
-    color: 'white',
+    background: '#dbeafe',
     border: '1px solid #2563eb',
     borderRadius: 12,
     marginTop: 10,
@@ -4587,9 +4127,8 @@ const styles: any = {
     gap: 14,
   },
   alunoCardGerenciar: {
-    background: '#182235',
-    color: 'white',
-    border: '1px solid #3B4A63',
+    background: '#f8fafc',
+    border: '1px solid #cbd5e1',
     borderRadius: 14,
     padding: 15,
     marginTop: 10,
@@ -4607,10 +4146,10 @@ const styles: any = {
     height: 55,
     borderRadius: '50%',
     objectFit: 'cover',
-    border: '2px solid #7C3AED',
+    border: '2px solid #2563eb',
   },
   contatoBox: {
-    background: 'linear-gradient(135deg,#182235,#243041)',
+    background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
     border: '1px solid #93c5fd',
     borderRadius: 14,
     padding: '10px 14px',
@@ -4627,19 +4166,18 @@ const styles: any = {
     marginTop: 6,
   },
   contatoWhatsapp: {
-    color: '#22C55E',
+    color: '#16a34a',
     textDecoration: 'none',
     fontWeight: 700,
   },
   contatoEmail: {
-    color: '#60A5FA',
+    color: '#2563eb',
     textDecoration: 'none',
     fontWeight: 700,
   },
   configBox: {
-    background: '#182235',
-    color: 'white',
-    border: '1px solid #3B4A63',
+    background: '#f8fafc',
+    border: '1px solid #cbd5e1',
     borderRadius: 14,
     padding: 15,
     marginBottom: 18,
@@ -4648,7 +4186,7 @@ const styles: any = {
     marginTop: 18,
     padding: 16,
     borderRadius: 16,
-    background: 'linear-gradient(135deg,#111827,#182235)',
+    background: 'linear-gradient(135deg,#eff6ff,#f8fafc)',
     border: '1px solid #bfdbfe',
   },
   kpiGrid: {
@@ -4658,9 +4196,8 @@ const styles: any = {
     marginBottom: 14,
   },
   kpiCard: {
-    background: '#182235',
-    color: 'white',
-    border: '1px solid #3B4A63',
+    background: 'white',
+    border: '1px solid #cbd5e1',
     borderRadius: 14,
     padding: 12,
     display: 'flex',
@@ -4675,9 +4212,8 @@ const styles: any = {
     marginTop: 14,
   },
   panel: {
-    background: '#182235',
-    color: 'white',
-    border: '1px solid #3B4A63',
+    background: 'white',
+    border: '1px solid #cbd5e1',
     borderRadius: 14,
     padding: 14,
   },
@@ -4687,11 +4223,10 @@ const styles: any = {
     gap: 10,
   },
   timelineItem: {
-    borderLeft: '4px solid #7C3AED',
+    borderLeft: '4px solid #2563eb',
     padding: '8px 10px',
     marginBottom: 10,
-    background: '#182235',
-    color: 'white',
+    background: '#f8fafc',
     borderRadius: 10,
   },
   avaliacaoLinha: {
@@ -4700,20 +4235,18 @@ const styles: any = {
     gap: 10,
     alignItems: 'center',
     flexWrap: 'wrap',
-    border: '1px solid #3B4A63',
+    border: '1px solid #cbd5e1',
     borderRadius: 12,
     padding: 10,
     marginTop: 8,
-    background: '#182235',
-    color: 'white',
+    background: '#f8fafc',
   },
   graficoCard: {
-    border: '1px solid #3B4A63',
+    border: '1px solid #cbd5e1',
     borderRadius: 12,
     padding: 10,
     marginTop: 10,
-    background: '#182235',
-    color: 'white',
+    background: '#f8fafc',
   },
 
   professorAdminCard: {
@@ -4722,9 +4255,8 @@ const styles: any = {
     gap: 12,
     alignItems: 'flex-start',
     flexWrap: 'wrap',
-    background: '#182235',
-    color: 'white',
-    border: '1px solid #3B4A63',
+    background: '#f8fafc',
+    border: '1px solid #cbd5e1',
     borderRadius: 14,
     padding: 14,
     marginTop: 10,
@@ -4735,11 +4267,10 @@ const styles: any = {
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    border: '1px solid #3B4A63',
+    border: '1px solid #cbd5e1',
     borderRadius: 12,
     marginTop: 8,
-    background: '#182235',
-    color: 'white',
+    background: 'white',
   },
   inputLine: {
     display: 'flex',
@@ -4751,16 +4282,15 @@ const styles: any = {
     marginTop: 10,
     padding: 10,
     borderRadius: 12,
-    background: '#182235',
-    color: 'white',
-    border: '1px solid #3B4A63',
+    background: 'white',
+    border: '1px solid #e2e8f0',
   },
   adminAlunoLinha: {
     display: 'flex',
     justifyContent: 'space-between',
     gap: 10,
     padding: 8,
-    borderBottom: '1px solid #3B4A63',
+    borderBottom: '1px solid #e2e8f0',
   },
   fotoPreview: {
     width: 90,
@@ -4789,7 +4319,7 @@ const styles: any = {
   },
   mobileNavItem: {
     background: 'transparent',
-    color: '#CBD5E1',
+    color: '#94A3B8',
     border: 'none',
     borderRadius: 16,
     padding: '8px 4px',
@@ -4821,7 +4351,7 @@ const styles: any = {
     paddingBottom: 90,
   },
   mobileHero: {
-    background: 'linear-gradient(135deg,#182235,#243041)',
+    background: 'linear-gradient(135deg,#111827,#172033)',
     border: '1px solid #243041',
     borderRadius: 28,
     padding: 20,
@@ -4840,7 +4370,7 @@ const styles: any = {
     border: '2px solid #7C3AED',
   },
   mobileMuted: {
-    color: '#CBD5E1',
+    color: '#94A3B8',
   },
   mobileStatsGrid: {
     display: 'grid',
@@ -4849,8 +4379,8 @@ const styles: any = {
     marginBottom: 16,
   },
   mobileStatCard: {
-    background: 'linear-gradient(135deg,#182235,#111827)',
-    border: '1px solid #3B4A63',
+    background: '#111827',
+    border: '1px solid #243041',
     borderRadius: 20,
     padding: 14,
     color: 'white',
@@ -4860,7 +4390,7 @@ const styles: any = {
     boxShadow: '0 0 16px rgba(124,58,237,.10)',
   },
   mobileWorkoutCard: {
-    background: 'linear-gradient(135deg,#182235,#0F172A)',
+    background: 'linear-gradient(135deg,#111827,#0F172A)',
     border: '1px solid #243041',
     borderRadius: 26,
     padding: 18,
@@ -4933,14 +4463,14 @@ const styles: any = {
     width: 40,
     height: 40,
     borderRadius: 14,
-    border: '1px solid #3B4A63',
-    background: '#0F172A',
+    border: '1px solid #243041',
+    background: '#111827',
     color: 'white',
     fontSize: 28,
     cursor: 'pointer',
   },
   sideProfile: {
-    background: 'linear-gradient(135deg,#182235,#243041)',
+    background: 'linear-gradient(135deg,#111827,#172033)',
     border: '1px solid #243041',
     borderRadius: 22,
     padding: 14,
@@ -5021,40 +4551,18 @@ const styles: any = {
     cursor: 'pointer',
   },
   statsWorkoutLine: {
-    background: '#182235',
-    border: '1px solid #3B4A63',
+    background: '#0B1020',
+    border: '1px solid #243041',
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
   },
   messageCardPremium: {
-    background: '#182235',
-    border: '1px solid #3B4A63',
+    background: '#0B1020',
+    border: '1px solid #243041',
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
-  },
-
-  dietaCard: {
-    background: 'linear-gradient(135deg,#182235,#0F172A)',
-    border: '1px solid #243041',
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 16,
-  },
-  refeicaoCard: {
-    background: '#0F172A',
-    border: '1px solid #243041',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 14,
-  },
-  refeicaoResumo: {
-    background: '#020617',
-    border: '1px solid #243041',
-    borderRadius: 16,
-    padding: 12,
-    marginTop: 10,
   },
 
   videoBox: {
