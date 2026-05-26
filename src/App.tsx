@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react'; 
 
 import {
   createUserWithEmailAndPassword,
@@ -25,7 +25,6 @@ import {
 import { auth, db } from './firebase';
 
 import AlunoHeader from './components/AlunoHeader';
-import StatsCards from './components/StatsCards';
 
 type TipoUsuario = 'admin' | 'professor' | 'aluno';
 type StatusUsuario = 'pendente' | 'aprovado' | 'bloqueado';
@@ -57,16 +56,31 @@ type ConfigSistema = {
 type AvaliacaoFisica = {
   id: string;
   data: string;
+
   peso: string;
   altura: string;
-  cintura: string;
-  quadril: string;
-  torax: string;
-  braco: string;
-  coxa: string;
+  imc: string;
+
   gordura: string;
   massaMagra: string;
-  imc: string;
+
+  cintura: string;
+  abdomen: string;
+  quadril: string;
+  torax: string;
+
+  bracoDireito: string;
+  bracoEsquerdo: string;
+
+  antebracoDireito: string;
+  antebracoEsquerdo: string;
+
+  coxaDireita: string;
+  coxaEsquerda: string;
+
+  panturrilhaDireita: string;
+  panturrilhaEsquerda: string;
+
   observacoes: string;
 };
 
@@ -99,6 +113,10 @@ type Exercicio = {
   finalizado: boolean;
   ordem: number;
   historicoCargas: { carga: string; data: string }[];
+  feedbackDificuldade?: 'facil' | 'medio' | 'dificil' | '';
+  feedbackEnergia?: 'baixa' | 'normal' | 'alta' | '';
+  feedbackDor?: 'nao' | 'sim' | '';
+  feedbackComentario?: string;
 };
 
 type Treino = {
@@ -114,9 +132,32 @@ type Treino = {
   criadoEm?: any;
 };
 
-type ModeloExercicio = Exercicio & {
+type Refeicao = {
+  horario: string;
+  nome: string;
+  alimentos: string;
+  observacoes: string;
+};
+
+type Dieta = {
+  id: string;
+  alunoId: string;
+  alunoNome: string;
+  alunoEmail: string;
   professorEmail: string;
+  nome: string;
+  objetivo: string;
+  refeicoes: Refeicao[];
+  observacoes: string;
   criadoEm?: any;
+};
+
+type ExercicioBiblioteca = Exercicio & {
+  professorEmail: string;
+  professorEmailNormalizado: string;
+  professorUid?: string;
+  criadoEm?: any;
+  atualizadoEm?: any;
 };
 
 const CACHE_TREINOS = 'evotrain_cache_treinos_v2';
@@ -140,7 +181,12 @@ export default function App() {
     const cache = localStorage.getItem(CACHE_TREINOS);
     return cache ? JSON.parse(cache) : [];
   });
-  const [modelosExercicios, setModelosExercicios] = useState<ModeloExercicio[]>([]);
+  const [dietas, setDietas] = useState<Dieta[]>([]);
+  const [exerciciosBiblioteca, setExerciciosBiblioteca] = useState<
+    ExercicioBiblioteca[]
+  >([]);
+  const [bibliotecaAberta, setBibliotecaAberta] = useState(false);
+  const [buscaBiblioteca, setBuscaBiblioteca] = useState('');
 
   const [novoAlunoNome, setNovoAlunoNome] = useState('');
   const [novoAlunoEmail, setNovoAlunoEmail] = useState('');
@@ -161,7 +207,9 @@ export default function App() {
   const [timerAtivo, setTimerAtivo] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(0);
   const [timerInfo, setTimerInfo] = useState('Descanso');
-  const [somTimer, setSomTimer] = useState<'padrao' | 'sino' | 'eletronico' | 'vitoria'>(() => {
+  const [somTimer, setSomTimer] = useState<
+    'padrao' | 'sino' | 'eletronico' | 'vitoria'
+  >(() => {
     return (localStorage.getItem('evotrain_som_timer') as any) || 'padrao';
   });
 
@@ -169,11 +217,20 @@ export default function App() {
   const [exercicioAbertoId, setExercicioAbertoId] = useState('');
   const [novoExercicioDraft, setNovoExercicioDraft] =
     useState<Exercicio | null>(null);
-  const [abaProfessor, setAbaProfessor] = useState<'treinos' | 'alunos'>(
-    'treinos'
-  );
+  const [abaProfessor, setAbaProfessor] = useState<
+    'treinos' | 'alunos' | 'avaliacoes' | 'dietas'
+  >('treinos');
   const [novaSenhaPrimeiroAcesso, setNovaSenhaPrimeiroAcesso] = useState('');
-  const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'treinos' | 'estatisticas' | 'avaliacoes' | 'mensagens' | 'configuracoes' | 'perfil'>('inicio');
+  const [abaAtiva, setAbaAtiva] = useState<
+    | 'inicio'
+    | 'treinos'
+    | 'estatisticas'
+    | 'avaliacoes'
+    | 'dieta'
+    | 'mensagens'
+    | 'configuracoes'
+    | 'perfil'
+  >('inicio');
   const [menuLateralAberto, setMenuLateralAberto] = useState(false);
 
   const [configSistema, setConfigSistema] = useState<ConfigSistema>({
@@ -189,18 +246,43 @@ export default function App() {
   const [avaliacaoDraft, setAvaliacaoDraft] = useState<AvaliacaoFisica>({
     id: '',
     data: new Date().toISOString().slice(0, 10),
+
     peso: '',
     altura: '',
-    cintura: '',
-    quadril: '',
-    torax: '',
-    braco: '',
-    coxa: '',
+    imc: '',
+
     gordura: '',
     massaMagra: '',
-    imc: '',
+
+    cintura: '',
+    abdomen: '',
+    quadril: '',
+    torax: '',
+
+    bracoDireito: '',
+    bracoEsquerdo: '',
+
+    antebracoDireito: '',
+    antebracoEsquerdo: '',
+
+    coxaDireita: '',
+    coxaEsquerda: '',
+
+    panturrilhaDireita: '',
+    panturrilhaEsquerda: '',
+
     observacoes: '',
   });
+
+  const [nomeDieta, setNomeDieta] = useState('');
+  const [objetivoDieta, setObjetivoDieta] = useState('');
+  const [observacoesDieta, setObservacoesDieta] = useState('');
+  const [refeicoesDieta, setRefeicoesDieta] = useState<Refeicao[]>([
+    { horario: '07:00', nome: 'Café da manhã', alimentos: '', observacoes: '' },
+    { horario: '12:00', nome: 'Almoço', alimentos: '', observacoes: '' },
+    { horario: '16:00', nome: 'Lanche', alimentos: '', observacoes: '' },
+    { horario: '19:00', nome: 'Jantar', alimentos: '', observacoes: '' },
+  ]);
 
   const adminEmailsAtivos = useMemo(() => {
     const listaConfig = (configSistema.admins || []).map((email) =>
@@ -237,7 +319,8 @@ export default function App() {
         setPerfil(null);
         setAlunos([]);
         setTreinos([]);
-        setModelosExercicios([]);
+        setDietas([]);
+        setExerciciosBiblioteca([]);
         setUsuariosSistema([]);
       }
     });
@@ -308,6 +391,63 @@ export default function App() {
       ),
     [treinosVisiveis]
   );
+
+  const dietasVisiveis = useMemo(() => {
+    const emailUsuario = String(usuario?.email || perfil?.email || '')
+      .toLowerCase()
+      .trim();
+    const alunoAtual =
+      perfil?.tipo === 'aluno' ? alunos[0] : alunoSelecionadoObj;
+
+    if (perfil?.tipo === 'professor') {
+      if (!alunoSelecionadoObj) return [];
+
+      return dietas.filter((dieta) => {
+        const emailDieta = String(dieta.alunoEmail || '')
+          .toLowerCase()
+          .trim();
+        const emailAluno = String(alunoSelecionadoObj.email || '')
+          .toLowerCase()
+          .trim();
+
+        return (
+          dieta.alunoId === alunoSelecionadoObj.id || emailDieta === emailAluno
+        );
+      });
+    }
+
+    if (perfil?.tipo === 'aluno') {
+      return dietas.filter((dieta) => {
+        const emailDieta = String(dieta.alunoEmail || '')
+          .toLowerCase()
+          .trim();
+        return emailDieta === emailUsuario || dieta.alunoId === alunoAtual?.id;
+      });
+    }
+
+    return dietas;
+  }, [dietas, perfil, alunoSelecionadoObj, usuario, alunos]);
+
+
+  const exerciciosBibliotecaFiltrados = useMemo(() => {
+    const termo = buscaBiblioteca.toLowerCase().trim();
+
+    if (!termo) return exerciciosBiblioteca;
+
+    return exerciciosBiblioteca.filter((modelo) => {
+      const texto = [
+        modelo.nome,
+        modelo.metodo,
+        modelo.repeticoes,
+        modelo.series,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return texto.includes(termo);
+    });
+  }, [exerciciosBiblioteca, buscaBiblioteca]);
 
   useEffect(() => {
     if (treinosOrdenados.length === 0) {
@@ -426,6 +566,12 @@ export default function App() {
   async function carregarTudo() {
     if (!usuario || !perfil) return;
 
+    const emailUsuario = String(usuario.email || '').trim();
+    const emailUsuarioNormalizado = emailUsuario.toLowerCase();
+    const perfilEmailNormalizado = String(perfil.email || '')
+      .trim()
+      .toLowerCase();
+
     if (isAdmin) {
       const usuariosSnap = await getDocs(collection(db, 'usuarios'));
       const listaUsuarios = usuariosSnap.docs.map((d) => {
@@ -439,81 +585,268 @@ export default function App() {
       setUsuariosSistema(listaUsuarios);
     }
 
-    let qAlunos: any;
+    const alunosRef = collection(db, 'alunos');
+    let listaAlunos: Aluno[] = [];
 
     if (perfil.tipo === 'professor') {
-      qAlunos = query(
-        collection(db, 'alunos'),
+      const qAlunosProfessor = query(
+        alunosRef,
         where('professorEmail', '==', usuario.email)
       );
-    } else if (perfil.tipo === 'aluno') {
-      qAlunos = query(
-        collection(db, 'alunos'),
-        where('email', '==', usuario.email)
-      );
-    } else {
-      qAlunos = collection(db, 'alunos');
-    }
 
-    const alunosSnap = await getDocs(qAlunos);
-    const listaAlunos = alunosSnap.docs.map((d) => {
-      const dados = d.data() as any;
-      return {
-        id: d.id,
-        ...dados,
-      } as Aluno;
-    });
-
-    setAlunos(listaAlunos);
-
-    const treinosRef = collection(db, 'treinos');
-    let qTreinos: any;
-
-    if (perfil.tipo === 'professor') {
-      qTreinos = query(
-        treinosRef,
-        where('professorEmail', '==', usuario.email)
-      );
-    } else if (perfil.tipo === 'aluno') {
-      qTreinos = query(treinosRef, where('alunoEmail', '==', usuario.email));
-    } else {
-      qTreinos = treinosRef;
-    }
-
-    const treinosSnap = await getDocs(qTreinos);
-    const listaTreinos = treinosSnap.docs.map((d) => {
-      const dados = d.data() as any;
-      return {
-        id: d.id,
-        ...dados,
-      } as Treino;
-    });
-
-    setTreinos(listaTreinos);
-
-    if (perfil.tipo === 'professor') {
-      const modelosSnap = await getDocs(
-        query(
-          collection(db, 'modelosExercicios'),
-          where('professorEmail', '==', usuario.email)
-        )
-      );
-
-      const listaModelos = modelosSnap.docs.map((d) => {
+      const alunosSnap = await getDocs(qAlunosProfessor);
+      listaAlunos = alunosSnap.docs.map((d) => {
         const dados = d.data() as any;
         return {
           id: d.id,
           ...dados,
-        } as ModeloExercicio;
+        } as Aluno;
       });
+    } else if (perfil.tipo === 'aluno') {
+      const mapaAlunos = new Map<string, Aluno>();
 
-      setModelosExercicios(
-        listaModelos.sort((a, b) =>
+      const consultasAlunos = [
+        query(alunosRef, where('uid', '==', usuario.uid)),
+        query(alunosRef, where('email', '==', emailUsuario)),
+      ];
+
+      if (perfil.email && perfil.email !== usuario.email) {
+        consultasAlunos.push(
+          query(alunosRef, where('email', '==', perfil.email))
+        );
+      }
+
+      if (emailUsuarioNormalizado && emailUsuarioNormalizado !== emailUsuario) {
+        consultasAlunos.push(
+          query(alunosRef, where('email', '==', emailUsuarioNormalizado))
+        );
+      }
+
+      if (
+        perfilEmailNormalizado &&
+        perfilEmailNormalizado !== emailUsuarioNormalizado
+      ) {
+        consultasAlunos.push(
+          query(alunosRef, where('email', '==', perfilEmailNormalizado))
+        );
+      }
+
+      for (const consulta of consultasAlunos) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaAlunos.set(d.id, { id: d.id, ...dados } as Aluno);
+        });
+      }
+
+      listaAlunos = Array.from(mapaAlunos.values());
+    } else {
+      const alunosSnap = await getDocs(alunosRef);
+      listaAlunos = alunosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Aluno;
+      });
+    }
+
+    setAlunos(listaAlunos);
+
+    const treinosRef = collection(db, 'treinos');
+    let listaTreinos: Treino[] = [];
+
+    if (perfil.tipo === 'professor') {
+      const qTreinosProfessor = query(
+        treinosRef,
+        where('professorEmail', '==', usuario.email)
+      );
+
+      const treinosSnap = await getDocs(qTreinosProfessor);
+      listaTreinos = treinosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Treino;
+      });
+    } else if (perfil.tipo === 'aluno') {
+      const alunoAtual = listaAlunos[0];
+      const mapaTreinos = new Map<string, Treino>();
+
+      const consultasTreinos = [
+        query(treinosRef, where('alunoEmail', '==', emailUsuario)),
+        query(
+          treinosRef,
+          where('alunoEmailNormalizado', '==', emailUsuarioNormalizado)
+        ),
+      ];
+
+      if (perfil.email && perfil.email !== usuario.email) {
+        consultasTreinos.push(
+          query(treinosRef, where('alunoEmail', '==', perfil.email))
+        );
+      }
+
+      if (alunoAtual?.email) {
+        consultasTreinos.push(
+          query(treinosRef, where('alunoEmail', '==', alunoAtual.email))
+        );
+        consultasTreinos.push(
+          query(
+            treinosRef,
+            where(
+              'alunoEmailNormalizado',
+              '==',
+              String(alunoAtual.email).trim().toLowerCase()
+            )
+          )
+        );
+      }
+
+      if (alunoAtual?.id) {
+        consultasTreinos.push(
+          query(treinosRef, where('alunoId', '==', alunoAtual.id))
+        );
+      }
+
+      if (alunoAtual?.uid) {
+        consultasTreinos.push(
+          query(treinosRef, where('alunoUid', '==', alunoAtual.uid))
+        );
+      }
+
+      for (const consulta of consultasTreinos) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaTreinos.set(d.id, { id: d.id, ...dados } as Treino);
+        });
+      }
+
+      listaTreinos = Array.from(mapaTreinos.values());
+    } else {
+      const treinosSnap = await getDocs(treinosRef);
+      listaTreinos = treinosSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return {
+          id: d.id,
+          ...dados,
+        } as Treino;
+      });
+    }
+
+    setTreinos(listaTreinos);
+
+    const dietasRef = collection(db, 'dietas');
+    let listaDietas: Dieta[] = [];
+
+    if (perfil.tipo === 'professor') {
+      const qDietas = query(
+        dietasRef,
+        where('professorEmail', '==', usuario.email)
+      );
+
+      const dietasSnap = await getDocs(qDietas);
+      listaDietas = dietasSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return { id: d.id, ...dados } as Dieta;
+      });
+    } else if (perfil.tipo === 'aluno') {
+      const alunoAtual = listaAlunos[0];
+      const mapaDietas = new Map<string, Dieta>();
+
+      const consultasDietas = [
+        query(dietasRef, where('alunoEmail', '==', emailUsuario)),
+        query(
+          dietasRef,
+          where('alunoEmailNormalizado', '==', emailUsuarioNormalizado)
+        ),
+      ];
+
+      if (perfil.email && perfil.email !== usuario.email) {
+        consultasDietas.push(
+          query(dietasRef, where('alunoEmail', '==', perfil.email))
+        );
+      }
+
+      if (alunoAtual?.email) {
+        consultasDietas.push(
+          query(dietasRef, where('alunoEmail', '==', alunoAtual.email))
+        );
+        consultasDietas.push(
+          query(
+            dietasRef,
+            where(
+              'alunoEmailNormalizado',
+              '==',
+              String(alunoAtual.email).trim().toLowerCase()
+            )
+          )
+        );
+      }
+
+      if (alunoAtual?.id) {
+        consultasDietas.push(
+          query(dietasRef, where('alunoId', '==', alunoAtual.id))
+        );
+      }
+
+      if (alunoAtual?.uid) {
+        consultasDietas.push(
+          query(dietasRef, where('alunoUid', '==', alunoAtual.uid))
+        );
+      }
+
+      for (const consulta of consultasDietas) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaDietas.set(d.id, { id: d.id, ...dados } as Dieta);
+        });
+      }
+
+      listaDietas = Array.from(mapaDietas.values());
+    } else {
+      const dietasSnap = await getDocs(dietasRef);
+      listaDietas = dietasSnap.docs.map((d) => {
+        const dados = d.data() as any;
+        return { id: d.id, ...dados } as Dieta;
+      });
+    }
+
+    setDietas(listaDietas);
+
+    if (perfil.tipo === 'professor') {
+      const bibliotecaRef = collection(db, 'exerciciosBiblioteca');
+      const mapaBiblioteca = new Map<string, ExercicioBiblioteca>();
+
+      const consultasBiblioteca = [
+        query(
+          bibliotecaRef,
+          where('professorEmailNormalizado', '==', emailUsuarioNormalizado)
+        ),
+        query(bibliotecaRef, where('professorEmail', '==', emailUsuario)),
+      ];
+
+      for (const consulta of consultasBiblioteca) {
+        const snap = await getDocs(consulta);
+        snap.docs.forEach((d) => {
+          const dados = d.data() as any;
+          mapaBiblioteca.set(d.id, {
+            id: d.id,
+            ...dados,
+          } as ExercicioBiblioteca);
+        });
+      }
+
+      setExerciciosBiblioteca(
+        Array.from(mapaBiblioteca.values()).sort((a, b) =>
           (a.nome || '').localeCompare(b.nome || '')
         )
       );
     } else {
-      setModelosExercicios([]);
+      setExerciciosBiblioteca([]);
     }
 
     if (perfil.tipo !== 'professor' && !treinoAbertoId && listaTreinos[0]) {
@@ -728,6 +1061,7 @@ export default function App() {
         uid: alunoUid,
         nome: novoAlunoNome,
         email: novoAlunoEmail,
+        emailNormalizado: novoAlunoEmail.trim().toLowerCase(),
         tipo: 'aluno',
         status: 'aprovado',
         primeiroAcesso: true,
@@ -739,6 +1073,7 @@ export default function App() {
         uid: alunoUid,
         nome: novoAlunoNome,
         email: novoAlunoEmail,
+        emailNormalizado: novoAlunoEmail.trim().toLowerCase(),
         foto: novoAlunoFoto,
         professorEmail: usuario.email,
         criadoEm: new Date(),
@@ -814,11 +1149,13 @@ export default function App() {
     try {
       await updateDoc(doc(db, 'alunos', aluno.id), {
         email: novoEmail,
+        emailNormalizado: novoEmail.trim().toLowerCase(),
       });
 
       if (aluno.uid) {
         await updateDoc(doc(db, 'usuarios', aluno.uid), {
           email: novoEmail,
+          emailNormalizado: novoEmail.trim().toLowerCase(),
         });
       }
 
@@ -833,6 +1170,7 @@ export default function App() {
         snap.docs.map((documento) =>
           updateDoc(doc(db, 'treinos', documento.id), {
             alunoEmail: novoEmail,
+            alunoEmailNormalizado: novoEmail.trim().toLowerCase(),
           })
         )
       );
@@ -913,9 +1251,16 @@ export default function App() {
       nome: nomeTreino,
       dataTreino,
       alunoId: aluno.id,
+      alunoUid: aluno.uid || '',
       alunoNome: aluno.nome,
       alunoEmail: aluno.email,
+      alunoEmailNormalizado: String(aluno.email || '')
+        .trim()
+        .toLowerCase(),
       professorEmail: usuario.email,
+      professorEmailNormalizado: String(usuario.email || '')
+        .trim()
+        .toLowerCase(),
       exercicios: [],
       mensagens: [],
       criadoEm: new Date(),
@@ -954,6 +1299,10 @@ export default function App() {
       finalizado: false,
       ordem: -1,
       historicoCargas: [],
+      feedbackDificuldade: '',
+      feedbackEnergia: '',
+      feedbackDor: '',
+      feedbackComentario: '',
     };
 
     setNovoExercicioDraft(novo);
@@ -986,61 +1335,6 @@ export default function App() {
 
     setNovoExercicioDraft(null);
     setExercicioAbertoId('');
-  }
-
-  async function salvarExercicioComoModelo(exercicio: Exercicio) {
-    if (!usuario) return;
-
-    if (!exercicio.nome?.trim()) {
-      alert('Digite o nome do exercício antes de salvar como modelo.');
-      return;
-    }
-
-    await addDoc(collection(db, 'modelosExercicios'), {
-      ...exercicio,
-      id: uid(),
-      professorEmail: usuario.email,
-      seriesConcluidas: [],
-      finalizado: false,
-      cargaAtual: '',
-      ultimaCarga: '',
-      historicoCargas: [],
-      criadoEm: new Date(),
-    });
-
-    alert('Exercício salvo nos seus modelos.');
-    carregarTudo();
-  }
-
-  async function usarModeloExercicio(treino: Treino, modelo: ModeloExercicio) {
-    const novo: Exercicio = {
-      id: uid(),
-      nome: modelo.nome || '',
-      series: modelo.series || '',
-      repeticoes: modelo.repeticoes || '',
-      descanso: modelo.descanso || '',
-      cargaSugerida: modelo.cargaSugerida || '',
-      metodo: modelo.metodo || '',
-      velocidade: modelo.velocidade || '',
-      video: modelo.video || '',
-      obsProfessor: modelo.obsProfessor || '',
-      obsAluno: '',
-      cargaAtual: '',
-      ultimaCarga: '',
-      seriesConcluidas: [],
-      finalizado: false,
-      ordem: 0,
-      historicoCargas: [],
-    };
-
-    await salvarExercicios(treino, [novo, ...(treino.exercicios || [])]);
-  }
-
-  async function excluirModeloExercicio(modeloId: string) {
-    if (!confirm('Excluir este modelo de exercício?')) return;
-
-    await deleteDoc(doc(db, 'modelosExercicios', modeloId));
-    carregarTudo();
   }
 
   async function salvarExercicios(treino: Treino, exercicios: Exercicio[]) {
@@ -1076,8 +1370,78 @@ export default function App() {
   }
 
   async function excluirExercicio(treino: Treino, exId: string) {
+    if (!confirm('Remover este exercício do treino?')) return;
+
     const exercicios = (treino.exercicios || []).filter((ex) => ex.id !== exId);
     await salvarExercicios(treino, exercicios);
+  }
+
+  function prepararExercicioParaTreino(
+    exercicio: Partial<Exercicio>
+  ): Exercicio {
+    return {
+      id: uid(),
+      nome: exercicio.nome || '',
+      series: exercicio.series || '',
+      repeticoes: exercicio.repeticoes || '',
+      descanso: exercicio.descanso || '',
+      cargaSugerida: exercicio.cargaSugerida || '',
+      metodo: exercicio.metodo || '',
+      velocidade: exercicio.velocidade || '',
+      video: exercicio.video || '',
+      obsProfessor: exercicio.obsProfessor || '',
+      obsAluno: '',
+      cargaAtual: '',
+      ultimaCarga: '',
+      seriesConcluidas: [],
+      finalizado: false,
+      ordem: 0,
+      historicoCargas: [],
+      feedbackDificuldade: exercicio.feedbackDificuldade || '',
+      feedbackEnergia: exercicio.feedbackEnergia || '',
+      feedbackDor: exercicio.feedbackDor || '',
+      feedbackComentario: exercicio.feedbackComentario || '',
+    };
+  }
+
+  async function salvarExercicioNaBiblioteca(exercicio: Exercicio) {
+    if (!usuario || perfil?.tipo !== 'professor') return;
+
+    if (!exercicio.nome?.trim()) {
+      alert('Digite o nome do exercício antes de salvar como modelo.');
+      return;
+    }
+
+    const emailProfessor = String(usuario.email || '').trim();
+
+    await addDoc(collection(db, 'exerciciosBiblioteca'), {
+      ...prepararExercicioParaTreino(exercicio),
+      id: uid(),
+      professorEmail: emailProfessor,
+      professorEmailNormalizado: emailProfessor.toLowerCase(),
+      professorUid: usuario.uid || '',
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
+    });
+
+    alert('Exercício salvo na sua biblioteca.');
+    carregarTudo();
+  }
+
+  async function adicionarExercicioDaBiblioteca(
+    treino: Treino,
+    modelo: ExercicioBiblioteca
+  ) {
+    const novo = prepararExercicioParaTreino(modelo);
+    await salvarExercicios(treino, [novo, ...(treino.exercicios || [])]);
+    setExercicioAbertoId(novo.id);
+  }
+
+  async function excluirExercicioBiblioteca(id: string) {
+    if (!confirm('Excluir este exercício salvo da sua biblioteca?')) return;
+
+    await deleteDoc(doc(db, 'exerciciosBiblioteca', id));
+    setExerciciosBiblioteca((prev) => prev.filter((item) => item.id !== id));
   }
 
   async function marcarSerie(treino: Treino, ex: Exercicio, serie: number) {
@@ -1158,7 +1522,6 @@ export default function App() {
     const permissao = await Notification.requestPermission();
     setNotificacoes(permissao);
   }
-
 
   function iniciarDescanso(segundos: number, info = 'Descanso') {
     setTimerInfo(info);
@@ -1415,16 +1778,31 @@ export default function App() {
     setAvaliacaoDraft({
       id: '',
       data: new Date().toISOString().slice(0, 10),
+
       peso: '',
       altura: '',
-      cintura: '',
-      quadril: '',
-      torax: '',
-      braco: '',
-      coxa: '',
+      imc: '',
+
       gordura: '',
       massaMagra: '',
-      imc: '',
+
+      cintura: '',
+      abdomen: '',
+      quadril: '',
+      torax: '',
+
+      bracoDireito: '',
+      bracoEsquerdo: '',
+
+      antebracoDireito: '',
+      antebracoEsquerdo: '',
+
+      coxaDireita: '',
+      coxaEsquerda: '',
+
+      panturrilhaDireita: '',
+      panturrilhaEsquerda: '',
+
       observacoes: '',
     });
 
@@ -1448,6 +1826,102 @@ export default function App() {
 
   function editarAvaliacao(avaliacao: AvaliacaoFisica) {
     setAvaliacaoDraft(avaliacao);
+  }
+
+  function atualizarRefeicaoDieta(
+    index: number,
+    campo: keyof Refeicao,
+    valor: string
+  ) {
+    setRefeicoesDieta((prev) =>
+      prev.map((refeicao, i) =>
+        i === index ? { ...refeicao, [campo]: valor } : refeicao
+      )
+    );
+  }
+
+  function adicionarRefeicaoDieta() {
+    setRefeicoesDieta((prev) => [
+      ...prev,
+      { horario: '', nome: '', alimentos: '', observacoes: '' },
+    ]);
+  }
+
+  function removerRefeicaoDieta(index: number) {
+    setRefeicoesDieta((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function salvarDietaAluno() {
+    if (!usuario) return;
+
+    if (!alunoSelecionado) {
+      alert('Selecione um aluno para criar a dieta.');
+      return;
+    }
+
+    if (!nomeDieta.trim()) {
+      alert('Digite o nome da dieta.');
+      return;
+    }
+
+    const aluno = alunos.find((a) => a.id === alunoSelecionado);
+
+    if (!aluno) {
+      alert('Aluno não encontrado.');
+      return;
+    }
+
+    const refeicoesValidas = refeicoesDieta.filter(
+      (refeicao) =>
+        refeicao.horario.trim() ||
+        refeicao.nome.trim() ||
+        refeicao.alimentos.trim() ||
+        refeicao.observacoes.trim()
+    );
+
+    await addDoc(collection(db, 'dietas'), {
+      alunoId: aluno.id,
+      alunoUid: aluno.uid || '',
+      alunoNome: aluno.nome,
+      alunoEmail: aluno.email,
+      alunoEmailNormalizado: String(aluno.email || '')
+        .trim()
+        .toLowerCase(),
+      professorEmail: usuario.email,
+      professorEmailNormalizado: String(usuario.email || '')
+        .trim()
+        .toLowerCase(),
+      nome: nomeDieta,
+      objetivo: objetivoDieta,
+      refeicoes: refeicoesValidas,
+      observacoes: observacoesDieta,
+      criadoEm: new Date(),
+    });
+
+    setNomeDieta('');
+    setObjetivoDieta('');
+    setObservacoesDieta('');
+    setRefeicoesDieta([
+      {
+        horario: '07:00',
+        nome: 'Café da manhã',
+        alimentos: '',
+        observacoes: '',
+      },
+      { horario: '12:00', nome: 'Almoço', alimentos: '', observacoes: '' },
+      { horario: '16:00', nome: 'Lanche', alimentos: '', observacoes: '' },
+      { horario: '19:00', nome: 'Jantar', alimentos: '', observacoes: '' },
+    ]);
+
+    alert('Dieta salva para o aluno.');
+    carregarTudo();
+  }
+
+  async function excluirDieta(dietaId: string) {
+    if (!confirm('Excluir esta dieta?')) return;
+
+    await deleteDoc(doc(db, 'dietas', dietaId));
+    carregarTudo();
   }
 
   async function trocarSenhaPrimeiroAcesso() {
@@ -1614,38 +2088,120 @@ export default function App() {
           </button>
 
           {menuLateralAberto && (
-            <div style={styles.sideOverlay} onClick={() => setMenuLateralAberto(false)}>
-              <aside style={styles.sideMenu} onClick={(e) => e.stopPropagation()}>
+            <div
+              style={styles.sideOverlay}
+              onClick={() => setMenuLateralAberto(false)}
+            >
+              <aside
+                style={styles.sideMenu}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div style={styles.sideHeader}>
                   <div style={styles.sideLogo}>⚡ EvoTrain</div>
-                  <button style={styles.sideClose} onClick={() => setMenuLateralAberto(false)}>
+                  <button
+                    style={styles.sideClose}
+                    onClick={() => setMenuLateralAberto(false)}
+                  >
                     ×
                   </button>
                 </div>
 
                 <div style={styles.sideProfile}>
                   {perfil?.foto ? (
-                    <img src={perfil.foto} alt="Perfil" style={styles.sideAvatar} />
+                    <img
+                      src={perfil.foto}
+                      alt="Perfil"
+                      style={styles.sideAvatar}
+                    />
                   ) : (
                     <div style={styles.sideAvatarFallback}>👤</div>
                   )}
 
                   <div>
                     <b>{perfil?.nome || 'Aluno'}</b>
-                    <small style={{ display: 'block', color: '#94A3B8' }}>{perfil?.email}</small>
-                    <span style={online ? styles.sideOnline : styles.sideOffline}>
+                    <small style={{ display: 'block', color: '#CBD5E1' }}>
+                      {perfil?.email}
+                    </small>
+                    <span
+                      style={online ? styles.sideOnline : styles.sideOffline}
+                    >
                       {online ? 'Online' : 'Offline'}
                     </span>
                   </div>
                 </div>
 
-                <MenuItem label="Início" icon="🏠" ativo={abaAtiva === 'inicio'} onClick={() => { setAbaAtiva('inicio'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Treinos" icon="🏋️" ativo={abaAtiva === 'treinos'} onClick={() => { setAbaAtiva('treinos'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Estatísticas" icon="📊" ativo={abaAtiva === 'estatisticas'} onClick={() => { setAbaAtiva('estatisticas'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Avaliações" icon="📋" ativo={abaAtiva === 'avaliacoes'} onClick={() => { setAbaAtiva('avaliacoes'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Mensagens" icon="💬" ativo={abaAtiva === 'mensagens'} onClick={() => { setAbaAtiva('mensagens'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Configurações" icon="⚙️" ativo={abaAtiva === 'configuracoes'} onClick={() => { setAbaAtiva('configuracoes'); setMenuLateralAberto(false); }} />
-                <MenuItem label="Perfil" icon="👤" ativo={abaAtiva === 'perfil'} onClick={() => { setAbaAtiva('perfil'); setMenuLateralAberto(false); }} />
+                <MenuItem
+                  label="Início"
+                  icon="🏠"
+                  ativo={abaAtiva === 'inicio'}
+                  onClick={() => {
+                    setAbaAtiva('inicio');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Treinos"
+                  icon="🏋️"
+                  ativo={abaAtiva === 'treinos'}
+                  onClick={() => {
+                    setAbaAtiva('treinos');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Estatísticas"
+                  icon="📊"
+                  ativo={abaAtiva === 'estatisticas'}
+                  onClick={() => {
+                    setAbaAtiva('estatisticas');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Avaliações"
+                  icon="📋"
+                  ativo={abaAtiva === 'avaliacoes'}
+                  onClick={() => {
+                    setAbaAtiva('avaliacoes');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Dieta"
+                  icon="🥗"
+                  ativo={abaAtiva === 'dieta'}
+                  onClick={() => {
+                    setAbaAtiva('dieta');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Mensagens"
+                  icon="💬"
+                  ativo={abaAtiva === 'mensagens'}
+                  onClick={() => {
+                    setAbaAtiva('mensagens');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Configurações"
+                  icon="⚙️"
+                  ativo={abaAtiva === 'configuracoes'}
+                  onClick={() => {
+                    setAbaAtiva('configuracoes');
+                    setMenuLateralAberto(false);
+                  }}
+                />
+                <MenuItem
+                  label="Perfil"
+                  icon="👤"
+                  ativo={abaAtiva === 'perfil'}
+                  onClick={() => {
+                    setAbaAtiva('perfil');
+                    setMenuLateralAberto(false);
+                  }}
+                />
 
                 <button style={styles.sideLogout} onClick={sair}>
                   Sair
@@ -1657,16 +2213,15 @@ export default function App() {
       )}
 
       {perfil?.tipo === 'aluno' && abaAtiva === 'inicio' && (
-        <>
-          <AlunoHeader nome={perfil?.nome || 'Aluno'} />
-          <StatsCards />
-        </>
+        <AlunoHeader nome={perfil?.nome || 'Aluno'} />
       )}
       {perfil?.tipo !== 'aluno' && (
         <div style={styles.topbar}>
           <div>
             <h1 style={{ margin: 0 }}>EvoTrain</h1>
-            <small>{online ? 'Online' : 'Offline - dados em cache/sincronização'}</small>
+            <small>
+              {online ? 'Online' : 'Offline - dados em cache/sincronização'}
+            </small>
           </div>
 
           <div>
@@ -1690,87 +2245,91 @@ export default function App() {
         </div>
       )}
 
-      {((perfil?.tipo === 'aluno' && abaAtiva === 'perfil') || perfil?.tipo !== 'aluno') && (
-      <Card>
-        <h2>Meu perfil</h2>
+      {((perfil?.tipo === 'aluno' && abaAtiva === 'perfil') ||
+        perfil?.tipo !== 'aluno') && (
+        <Card>
+          <h2>Meu perfil</h2>
 
-        <input
-          style={styles.input}
-          placeholder="Nome"
-          value={perfil?.nome || ''}
-          onChange={(e) =>
-            setPerfil({ ...(perfil as Perfil), nome: e.target.value })
-          }
-        />
-
-        <label style={styles.label}>Foto do perfil</label>
-
-        <input
-          style={styles.input}
-          type="file"
-          accept="image/*"
-          onChange={(e) =>
-            lerImagemLocal(e, (foto) =>
-              setPerfil({ ...(perfil as Perfil), foto })
-            )
-          }
-        />
-
-        {perfil?.foto && (
-          <img
-            src={perfil.foto}
-            alt="Foto do perfil"
-            style={styles.fotoPreview}
+          <input
+            style={styles.input}
+            placeholder="Nome"
+            value={perfil?.nome || ''}
+            onChange={(e) =>
+              setPerfil({ ...(perfil as Perfil), nome: e.target.value })
+            }
           />
-        )}
 
-        {perfil?.tipo === 'professor' && (
-          <>
-            <input
-              style={styles.input}
-              placeholder="Formação"
-              value={perfil?.formacao || ''}
-              onChange={(e) =>
-                setPerfil({ ...(perfil as Perfil), formacao: e.target.value })
-              }
+          <label style={styles.label}>Foto do perfil</label>
+
+          <input
+            style={styles.input}
+            type="file"
+            accept="image/*"
+            onChange={(e) =>
+              lerImagemLocal(e, (foto) =>
+                setPerfil({ ...(perfil as Perfil), foto })
+              )
+            }
+          />
+
+          {perfil?.foto && (
+            <img
+              src={perfil.foto}
+              alt="Foto do perfil"
+              style={styles.fotoPreview}
             />
+          )}
 
-            <input
-              style={styles.input}
-              placeholder="Especialidade"
-              value={perfil?.especialidade || ''}
-              onChange={(e) =>
-                setPerfil({
-                  ...(perfil as Perfil),
-                  especialidade: e.target.value,
-                })
-              }
-            />
+          {perfil?.tipo === 'professor' && (
+            <>
+              <input
+                style={styles.input}
+                placeholder="Formação"
+                value={perfil?.formacao || ''}
+                onChange={(e) =>
+                  setPerfil({ ...(perfil as Perfil), formacao: e.target.value })
+                }
+              />
 
-            <input
-              style={styles.input}
-              placeholder="CREF"
-              value={perfil?.cref || ''}
-              onChange={(e) =>
-                setPerfil({ ...(perfil as Perfil), cref: e.target.value })
-              }
-            />
+              <input
+                style={styles.input}
+                placeholder="Especialidade"
+                value={perfil?.especialidade || ''}
+                onChange={(e) =>
+                  setPerfil({
+                    ...(perfil as Perfil),
+                    especialidade: e.target.value,
+                  })
+                }
+              />
 
-            <textarea
-              style={styles.input}
-              placeholder="Descrição profissional"
-              value={perfil?.descricao || ''}
-              onChange={(e) =>
-                setPerfil({ ...(perfil as Perfil), descricao: e.target.value })
-              }
-            />
-          </>
-        )}
+              <input
+                style={styles.input}
+                placeholder="CREF"
+                value={perfil?.cref || ''}
+                onChange={(e) =>
+                  setPerfil({ ...(perfil as Perfil), cref: e.target.value })
+                }
+              />
 
-        <button style={styles.primary} onClick={salvarPerfil}>
-          Salvar perfil
-        </button>
-      </Card>
+              <textarea
+                style={styles.input}
+                placeholder="Descrição profissional"
+                value={perfil?.descricao || ''}
+                onChange={(e) =>
+                  setPerfil({
+                    ...(perfil as Perfil),
+                    descricao: e.target.value,
+                  })
+                }
+              />
+            </>
+          )}
+
+          <button style={styles.primary} onClick={salvarPerfil}>
+            Salvar perfil
+          </button>
+        </Card>
       )}
 
       {isAdmin && perfil?.tipo !== 'aluno' && (
@@ -2050,9 +2609,230 @@ export default function App() {
             style={abaProfessor === 'alunos' ? styles.tabAtiva : styles.tab}
             onClick={() => setAbaProfessor('alunos')}
           >
-            Gerenciar alunos
+            👥 Gerenciar alunos
+          </button>
+
+          <button
+            style={abaProfessor === 'avaliacoes' ? styles.tabAtiva : styles.tab}
+            onClick={() => setAbaProfessor('avaliacoes')}
+          >
+            📏 Avaliação física
+          </button>
+
+          <button
+            style={abaProfessor === 'dietas' ? styles.tabAtiva : styles.tab}
+            onClick={() => setAbaProfessor('dietas')}
+          >
+            🥗 Dietas
           </button>
         </div>
+      )}
+
+      {perfil?.tipo === 'professor' && abaProfessor === 'avaliacoes' && (
+        <Card>
+          <div style={styles.treinoHeader}>
+            <div>
+              <h2>📏 Avaliação física</h2>
+              <p>
+                Selecione um aluno para registrar medidas corporais e acompanhar
+                a evolução.
+              </p>
+            </div>
+          </div>
+
+          <select
+            style={styles.input}
+            value={alunoSelecionado}
+            onChange={(e) => {
+              setAlunoSelecionado(e.target.value);
+              setAlunoDashId(e.target.value);
+            }}
+          >
+            <option value="">Selecione o aluno</option>
+            {alunos.map((aluno) => (
+              <option key={aluno.id} value={aluno.id}>
+                {aluno.nome} - {aluno.email}
+              </option>
+            ))}
+          </select>
+
+          {!alunoSelecionadoObj && (
+            <p style={{ marginTop: 18 }}>
+              Escolha um aluno para abrir o formulário de avaliação física.
+            </p>
+          )}
+
+          {alunoSelecionadoObj && (
+            <DashboardAluno
+              aluno={alunoSelecionadoObj}
+              dados={alunoDashboard(alunoSelecionadoObj)}
+              avaliacaoDraft={avaliacaoDraft}
+              atualizarAvaliacao={atualizarAvaliacao}
+              salvarAvaliacaoAluno={salvarAvaliacaoAluno}
+              editarAvaliacao={editarAvaliacao}
+              excluirAvaliacaoAluno={excluirAvaliacaoAluno}
+            />
+          )}
+        </Card>
+      )}
+
+      {perfil?.tipo === 'professor' && abaProfessor === 'dietas' && (
+        <Card>
+          <h2>Dietas dos alunos</h2>
+          <p>
+            Crie uma dieta para o aluno selecionado. O aluno verá no menu
+            lateral em Dieta.
+          </p>
+
+          <select
+            style={styles.input}
+            value={alunoSelecionado}
+            onChange={(e) => setAlunoSelecionado(e.target.value)}
+          >
+            <option value="">Selecione o aluno</option>
+            {alunos.map((aluno) => (
+              <option key={aluno.id} value={aluno.id}>
+                {aluno.nome} - {aluno.email}
+              </option>
+            ))}
+          </select>
+
+          <div style={styles.dashboardGrid}>
+            <div style={styles.panel}>
+              <h3>Nova dieta</h3>
+
+              <label style={styles.label}>Nome da dieta</label>
+              <input
+                style={styles.input}
+                placeholder="Ex.: Dieta de ganho de massa"
+                value={nomeDieta}
+                onChange={(e) => setNomeDieta(e.target.value)}
+              />
+
+              <label style={styles.label}>Objetivo</label>
+              <input
+                style={styles.input}
+                placeholder="Ex.: perda de gordura, manutenção, hipertrofia"
+                value={objetivoDieta}
+                onChange={(e) => setObjetivoDieta(e.target.value)}
+              />
+
+              <h3>Refeições</h3>
+
+              {refeicoesDieta.map((refeicao, index) => (
+                <div key={index} style={styles.refeicaoCard}>
+                  <div style={styles.formGrid}>
+                    <input
+                      style={styles.input}
+                      placeholder="Horário"
+                      value={refeicao.horario}
+                      onChange={(e) =>
+                        atualizarRefeicaoDieta(index, 'horario', e.target.value)
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      placeholder="Nome da refeição"
+                      value={refeicao.nome}
+                      onChange={(e) =>
+                        atualizarRefeicaoDieta(index, 'nome', e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <textarea
+                    style={styles.input}
+                    placeholder="Alimentos e quantidades"
+                    value={refeicao.alimentos}
+                    onChange={(e) =>
+                      atualizarRefeicaoDieta(index, 'alimentos', e.target.value)
+                    }
+                  />
+
+                  <textarea
+                    style={styles.input}
+                    placeholder="Observações da refeição"
+                    value={refeicao.observacoes}
+                    onChange={(e) =>
+                      atualizarRefeicaoDieta(
+                        index,
+                        'observacoes',
+                        e.target.value
+                      )
+                    }
+                  />
+
+                  <button
+                    style={styles.danger}
+                    onClick={() => removerRefeicaoDieta(index)}
+                  >
+                    Remover refeição
+                  </button>
+                </div>
+              ))}
+
+              <button style={styles.secondary} onClick={adicionarRefeicaoDieta}>
+                + Adicionar refeição
+              </button>
+
+              <label style={styles.label}>Observações gerais</label>
+              <textarea
+                style={styles.input}
+                placeholder="Orientações gerais da dieta"
+                value={observacoesDieta}
+                onChange={(e) => setObservacoesDieta(e.target.value)}
+              />
+
+              <button style={styles.primary} onClick={salvarDietaAluno}>
+                Salvar dieta
+              </button>
+            </div>
+
+            <div style={styles.panel}>
+              <h3>Dietas salvas</h3>
+              {!alunoSelecionadoObj && (
+                <p>Selecione um aluno para ver as dietas.</p>
+              )}
+              {alunoSelecionadoObj && dietasVisiveis.length === 0 && (
+                <p>Nenhuma dieta cadastrada para este aluno.</p>
+              )}
+
+              {dietasVisiveis.map((dieta) => (
+                <div key={dieta.id} style={styles.dietaCard}>
+                  <h3>{dieta.nome}</h3>
+                  <p>
+                    <b>Objetivo:</b> {dieta.objetivo || '-'}
+                  </p>
+                  <small>
+                    {dieta.alunoNome} - {dieta.alunoEmail}
+                  </small>
+
+                  {(dieta.refeicoes || []).map((refeicao, index) => (
+                    <div key={index} style={styles.refeicaoResumo}>
+                      <b>
+                        {refeicao.horario} - {refeicao.nome}
+                      </b>
+                      <p>{refeicao.alimentos || '-'}</p>
+                      {refeicao.observacoes && (
+                        <small>{refeicao.observacoes}</small>
+                      )}
+                    </div>
+                  ))}
+
+                  {dieta.observacoes && <p>{dieta.observacoes}</p>}
+
+                  <button
+                    style={styles.danger}
+                    onClick={() => excluirDieta(dieta.id)}
+                  >
+                    Excluir dieta
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
       )}
 
       {perfil?.tipo === 'professor' && abaProfessor === 'alunos' && (
@@ -2165,10 +2945,16 @@ export default function App() {
           <div style={styles.mobileHero}>
             <div>
               <small style={styles.mobileMuted}>Bem-vindo de volta</small>
-              <h2 style={{ margin: '6px 0 0' }}>{perfil?.nome || 'Aluno'} 👋</h2>
-              <p style={styles.mobileMuted}>Foque no treino de hoje e mantenha sua evolução.</p>
+              <h2 style={{ margin: '6px 0 0' }}>
+                {perfil?.nome || 'Aluno'} 👋
+              </h2>
+              <p style={styles.mobileMuted}>
+                Foque no treino de hoje e mantenha sua evolução.
+              </p>
             </div>
-            {perfil?.foto && <img src={perfil.foto} alt="Foto" style={styles.mobileAvatar} />}
+            {perfil?.foto && (
+              <img src={perfil.foto} alt="Foto" style={styles.mobileAvatar} />
+            )}
           </div>
 
           <div style={styles.mobileStatsGrid}>
@@ -2179,7 +2965,12 @@ export default function App() {
             </div>
             <div style={styles.mobileStatCard}>
               <span>Progresso</span>
-              <b>{treinosOrdenados[0] ? Math.round(calcularProgresso(treinosOrdenados[0])) : 0}%</b>
+              <b>
+                {treinosOrdenados[0]
+                  ? Math.round(calcularProgresso(treinosOrdenados[0]))
+                  : 0}
+                %
+              </b>
               <small>treino atual</small>
             </div>
             <div style={styles.mobileStatCard}>
@@ -2218,7 +3009,9 @@ export default function App() {
             style={styles.input}
             value={somTimer}
             onChange={(e) =>
-              setSomTimer(e.target.value as 'padrao' | 'sino' | 'eletronico' | 'vitoria')
+              setSomTimer(
+                e.target.value as 'padrao' | 'sino' | 'eletronico' | 'vitoria'
+              )
             }
           >
             <option value="padrao">Padrão / Bip</option>
@@ -2236,7 +3029,8 @@ export default function App() {
           </button>
 
           <p style={styles.mobileMuted}>
-            O tempo de descanso continua sendo definido pelo professor em cada exercício.
+            O tempo de descanso continua sendo definido pelo professor em cada
+            exercício.
           </p>
         </Card>
       )}
@@ -2252,12 +3046,24 @@ export default function App() {
             </div>
             <div style={styles.mobileStatCard}>
               <span>Exercícios</span>
-              <b>{treinos.reduce((acc, t) => acc + (t.exercicios?.length || 0), 0)}</b>
+              <b>
+                {treinos.reduce(
+                  (acc, t) => acc + (t.exercicios?.length || 0),
+                  0
+                )}
+              </b>
               <small>cadastrados</small>
             </div>
             <div style={styles.mobileStatCard}>
               <span>Finalizados</span>
-              <b>{treinos.reduce((acc, t) => acc + (t.exercicios || []).filter((e) => e.finalizado).length, 0)}</b>
+              <b>
+                {treinos.reduce(
+                  (acc, t) =>
+                    acc +
+                    (t.exercicios || []).filter((e) => e.finalizado).length,
+                  0
+                )}
+              </b>
               <small>concluídos</small>
             </div>
           </div>
@@ -2274,13 +3080,16 @@ export default function App() {
         <Card>
           <h2>Avaliações</h2>
           <p style={styles.mobileMuted}>
-            Suas avaliações físicas e histórico aparecerão aqui quando o professor registrar.
+            Suas avaliações físicas e histórico aparecerão aqui quando o
+            professor registrar.
           </p>
           {alunos[0]?.avaliacoes?.length ? (
             alunos[0].avaliacoes.map((av) => (
               <div key={av.id} style={styles.statsWorkoutLine}>
                 <b>{av.data}</b>
-                <p>Peso: {av.peso || '-'} kg | IMC: {av.imc || '-'}</p>
+                <p>
+                  Peso: {av.peso || '-'} kg | IMC: {av.imc || '-'}
+                </p>
               </div>
             ))
           ) : (
@@ -2289,24 +3098,82 @@ export default function App() {
         </Card>
       )}
 
-      {perfil?.tipo === 'aluno' && abaAtiva === 'mensagens' && (
+      {perfil?.tipo === 'aluno' && abaAtiva === 'dieta' && (
         <Card>
-          <h2>Mensagens</h2>
-          <p style={styles.mobileMuted}>Mensagens dos treinos aparecem abaixo.</p>
-          {treinos.flatMap((t) => (t.mensagens || []).map((m, i) => ({ ...m, treino: t.nome, id: `${t.id}-${i}` }))).length === 0 && (
-            <p>Nenhuma mensagem ainda.</p>
+          <h2>Dieta</h2>
+          <p style={styles.mobileMuted}>
+            Sua dieta criada pelo professor aparecerá aqui.
+          </p>
+
+          {dietasVisiveis.length === 0 && (
+            <p>Nenhuma dieta cadastrada ainda.</p>
           )}
-          {treinos.flatMap((t) => (t.mensagens || []).map((m, i) => ({ ...m, treino: t.nome, id: `${t.id}-${i}` }))).map((m) => (
-            <div key={m.id} style={styles.messageCardPremium}>
-              <small>{m.treino}</small>
-              <p><b>{m.autor}:</b> {m.texto}</p>
-              <small>{m.data}</small>
+
+          {dietasVisiveis.map((dieta) => (
+            <div key={dieta.id} style={styles.dietaCard}>
+              <h3>{dieta.nome}</h3>
+              <p>
+                <b>Objetivo:</b> {dieta.objetivo || '-'}
+              </p>
+
+              {(dieta.refeicoes || []).map((refeicao, index) => (
+                <div key={index} style={styles.refeicaoResumo}>
+                  <b>
+                    {refeicao.horario} - {refeicao.nome}
+                  </b>
+                  <p>{refeicao.alimentos || '-'}</p>
+                  {refeicao.observacoes && (
+                    <small>{refeicao.observacoes}</small>
+                  )}
+                </div>
+              ))}
+
+              {dieta.observacoes && (
+                <p>
+                  <b>Observações:</b> {dieta.observacoes}
+                </p>
+              )}
             </div>
           ))}
         </Card>
       )}
 
-      {((perfil?.tipo === 'aluno' ? abaAtiva === 'treinos' : abaProfessor === 'treinos')) && (
+      {perfil?.tipo === 'aluno' && abaAtiva === 'mensagens' && (
+        <Card>
+          <h2>Mensagens</h2>
+          <p style={styles.mobileMuted}>
+            Mensagens dos treinos aparecem abaixo.
+          </p>
+          {treinos.flatMap((t) =>
+            (t.mensagens || []).map((m, i) => ({
+              ...m,
+              treino: t.nome,
+              id: `${t.id}-${i}`,
+            }))
+          ).length === 0 && <p>Nenhuma mensagem ainda.</p>}
+          {treinos
+            .flatMap((t) =>
+              (t.mensagens || []).map((m, i) => ({
+                ...m,
+                treino: t.nome,
+                id: `${t.id}-${i}`,
+              }))
+            )
+            .map((m) => (
+              <div key={m.id} style={styles.messageCardPremium}>
+                <small>{m.treino}</small>
+                <p>
+                  <b>{m.autor}:</b> {m.texto}
+                </p>
+                <small>{m.data}</small>
+              </div>
+            ))}
+        </Card>
+      )}
+
+      {(perfil?.tipo === 'aluno'
+        ? abaAtiva === 'treinos'
+        : abaProfessor === 'treinos') && (
         <>
           {perfil?.tipo === 'professor' && (
             <Card>
@@ -2434,12 +3301,14 @@ export default function App() {
                         </button>
                       )}
 
-                      <button
-                        style={styles.secondary}
-                        onClick={() => reiniciarTreino(treino)}
-                      >
-                        Reiniciar treino
-                      </button>
+                      {perfil?.tipo === 'aluno' && (
+                        <button
+                          style={styles.secondary}
+                          onClick={() => reiniciarTreino(treino)}
+                        >
+                          Reiniciar treino
+                        </button>
+                      )}
 
                       {perfil?.tipo === 'professor' && (
                         <button
@@ -2461,42 +3330,104 @@ export default function App() {
                     </p>
                   )}
 
-                  {perfil?.tipo === 'professor' && modelosExercicios.length > 0 && (
-                    <div style={styles.modelosBox}>
-                      <div style={styles.modelosHeader}>
-                        <div>
-                          <h3 style={{ margin: 0 }}>Meus exercícios salvos</h3>
-                          <small>Use apenas os modelos criados pelo professor logado.</small>
-                        </div>
+                  {perfil?.tipo === 'professor' && (
+                    <div style={styles.bibliotecaCompactBox}>
+                      <div>
+                        <h3 style={{ margin: 0 }}>📚 Biblioteca de exercícios</h3>
+                        <small style={{ color: '#CBD5E1' }}>
+                          Use modelos salvos sem ocupar a tela do treino.
+                        </small>
                       </div>
 
-                      <div style={styles.modelosGrid}>
-                        {modelosExercicios.map((modelo) => (
-                          <div key={modelo.id} style={styles.modeloCard}>
-                            <b>{modelo.nome || 'Exercício sem nome'}</b>
-                            <small>
-                              {modelo.series || '-'} séries | {modelo.repeticoes || '-'} reps | descanso {modelo.descanso || '-'}s
+                      <button
+                        style={styles.primary}
+                        onClick={() => setBibliotecaAberta(true)}
+                      >
+                        Abrir biblioteca ({exerciciosBiblioteca.length})
+                      </button>
+                    </div>
+                  )}
+
+                  {perfil?.tipo === 'professor' && bibliotecaAberta && (
+                    <div
+                      style={styles.modalOverlay}
+                      onClick={() => setBibliotecaAberta(false)}
+                    >
+                      <div
+                        style={styles.bibliotecaModal}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div style={styles.modalHeader}>
+                          <div>
+                            <h2 style={{ margin: 0 }}>📚 Biblioteca de exercícios</h2>
+                            <small style={{ color: '#CBD5E1' }}>
+                              Modelos salvos por este professor. Pesquise, use no treino ou exclua.
                             </small>
-
-                            {modelo.metodo && <small>Método: {modelo.metodo}</small>}
-
-                            <div>
-                              <button
-                                style={styles.success}
-                                onClick={() => usarModeloExercicio(treino, modelo)}
-                              >
-                                Usar neste treino
-                              </button>
-
-                              <button
-                                style={styles.danger}
-                                onClick={() => excluirModeloExercicio(modelo.id)}
-                              >
-                                Excluir modelo
-                              </button>
-                            </div>
                           </div>
-                        ))}
+
+                          <button
+                            style={styles.modalCloseButton}
+                            onClick={() => setBibliotecaAberta(false)}
+                          >
+                            ×
+                          </button>
+                        </div>
+
+                        <input
+                          style={styles.input}
+                          placeholder="Buscar por nome, grupo muscular, método ou repetição..."
+                          value={buscaBiblioteca}
+                          onChange={(e) => setBuscaBiblioteca(e.target.value)}
+                        />
+
+                        {exerciciosBiblioteca.length === 0 && (
+                          <p>Nenhum exercício salvo na biblioteca ainda.</p>
+                        )}
+
+                        {exerciciosBiblioteca.length > 0 && exerciciosBibliotecaFiltrados.length === 0 && (
+                          <p>Nenhum modelo encontrado para essa busca.</p>
+                        )}
+
+                        <div style={styles.bibliotecaListaCompacta}>
+                          {exerciciosBibliotecaFiltrados.map((modelo) => (
+                            <div
+                              key={modelo.id}
+                              style={styles.bibliotecaLinha}
+                            >
+                              <div style={{ minWidth: 0 }}>
+                                <b style={styles.bibliotecaNomeLinha}>
+                                  {modelo.nome || 'Exercício sem nome'}
+                                </b>
+
+                                <small style={{ color: '#CBD5E1', display: 'block' }}>
+                                  {modelo.series || '-'} séries •{' '}
+                                  {modelo.repeticoes || '-'} reps •{' '}
+                                  {modelo.descanso || '-'}s
+                                  {modelo.metodo ? ` • ${modelo.metodo}` : ''}
+                                </small>
+                              </div>
+
+                              <div style={styles.bibliotecaAcoesLinha}>
+                                <button
+                                  style={styles.success}
+                                  onClick={() => {
+                                    adicionarExercicioDaBiblioteca(treino, modelo);
+                                    setBibliotecaAberta(false);
+                                  }}
+                                >
+                                  Usar
+                                </button>
+
+                                <button
+                                  style={styles.danger}
+                                  onClick={() => excluirExercicioBiblioteca(modelo.id)}
+                                >
+                                  Excluir
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2505,8 +3436,8 @@ export default function App() {
                     <div
                       style={{
                         ...styles.exercise,
-                        border: '2px solid #2563eb',
-                        background: '#eff6ff',
+                        border: '2px solid #7C3AED',
+                        background: 'linear-gradient(135deg,#182235,#0F172A)',
                       }}
                     >
                       <h3>Novo exercício</h3>
@@ -2624,7 +3555,9 @@ export default function App() {
                         timerAtivo={timerAtivo}
                         tempoRestante={tempoRestante}
                         timerInfo={timerInfo}
-                        onToggle={() => setExercicioAbertoId(aberto ? '' : ex.id)}
+                        onToggle={() =>
+                          setExercicioAbertoId(aberto ? '' : ex.id)
+                        }
                         onDragStart={() => setDragExercicioId(ex.id)}
                         onDrop={() => moverExercicio(treino, ex.id)}
                         onAtualizar={(campo: keyof Exercicio, valor: any) =>
@@ -2635,7 +3568,9 @@ export default function App() {
                         }
                         onFinalizar={() => finalizarExercicio(treino, ex)}
                         onExcluir={() => excluirExercicio(treino, ex.id)}
-                        onSalvarModelo={() => salvarExercicioComoModelo(ex)}
+                        onSalvarBiblioteca={() =>
+                          salvarExercicioNaBiblioteca(ex)
+                        }
                         onFecharTimer={() => setTimerAtivo(false)}
                       />
                     );
@@ -2688,9 +3623,13 @@ function MobileExerciseCard({
   onMarcarSerie,
   onFinalizar,
   onExcluir,
-  onSalvarModelo,
+  onSalvarBiblioteca,
   onFecharTimer,
 }: any) {
+  const [abaExercicio, setAbaExercicio] = useState<'execucao' | 'detalhes' | 'historico' | 'feedback'>(
+    perfil?.tipo === 'professor' ? 'detalhes' : 'execucao'
+  );
+
   const totalSeries = Number(ex.series) || 0;
   const feitas = ex.seriesConcluidas || [];
   const proximaSerie =
@@ -2700,11 +3639,13 @@ function MobileExerciseCard({
 
   const descanso = Number(ex.descanso) || 0;
   const timerDesteExercicio =
-    timerAtivo && String(timerInfo || '').toLowerCase().includes(String(ex.nome || '').toLowerCase());
+    timerAtivo &&
+    String(timerInfo || '')
+      .toLowerCase()
+      .includes(String(ex.nome || '').toLowerCase());
 
-  const tempoParaMostrar = timerDesteExercicio
-    ? tempoRestante
-    : descanso;
+  const tempoParaMostrar = timerDesteExercicio ? tempoRestante : descanso;
+  const progressoSeries = totalSeries ? Math.round((feitas.length / totalSeries) * 100) : 0;
 
   if (!aberto) {
     return (
@@ -2714,25 +3655,67 @@ function MobileExerciseCard({
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
         onClick={onToggle}
-        style={mobileStyles.exerciseMini}
+        style={mobileStyles.exerciseMiniPremium}
       >
         <div style={mobileStyles.miniLeft}>
-          <span style={ex.finalizado ? mobileStyles.checkDone : mobileStyles.checkEmpty}>
+          <span
+            style={
+              ex.finalizado ? mobileStyles.checkDone : mobileStyles.checkEmpty
+            }
+          >
             {ex.finalizado ? '✓' : ''}
           </span>
 
-          <div>
-            <b>{ex.nome || 'Exercício sem nome'}</b>
+          <div style={{ minWidth: 0 }}>
+            <b style={mobileStyles.miniTitle}>{ex.nome || 'Exercício sem nome'}</b>
             <small style={mobileStyles.textSoft}>
-              {ex.series || '-'} séries • {ex.repeticoes || '-'} reps • {ex.descanso || '-'}s
+              {ex.series || '-'} séries • {ex.repeticoes || '-'} reps •{' '}
+              {ex.descanso || '-'}s
+              {ex.cargaSugerida ? ` • Carga: ${ex.cargaSugerida}` : ''}
             </small>
           </div>
         </div>
 
-        <small style={mobileStyles.textSoft}>Minimizado</small>
+        {perfil?.tipo === 'professor' ? (
+          <div style={mobileStyles.miniActions} onClick={(e) => e.stopPropagation()}>
+            <button
+              style={mobileStyles.miniLibraryButton}
+              onClick={onSalvarBiblioteca}
+              title="Enviar exercício para biblioteca"
+            >
+              💾 Biblioteca
+            </button>
+
+            <button
+              style={mobileStyles.miniDeleteButton}
+              onClick={onExcluir}
+              title="Excluir exercício do treino"
+            >
+              🗑️ Excluir
+            </button>
+
+            <button style={mobileStyles.miniOpenButton} onClick={onToggle} title="Abrir exercício">
+              +
+            </button>
+          </div>
+        ) : (
+          <div style={mobileStyles.miniProgressBox}>
+            <b>{progressoSeries}%</b>
+            <small style={mobileStyles.textSoft}>séries</small>
+          </div>
+        )}
       </div>
     );
   }
+
+  const abaButton = (id: 'execucao' | 'detalhes' | 'historico' | 'feedback', label: string) => (
+    <button
+      style={abaExercicio === id ? mobileStyles.exerciseTabActive : mobileStyles.exerciseTab}
+      onClick={() => setAbaExercicio(id)}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div
@@ -2750,233 +3733,312 @@ function MobileExerciseCard({
         <div style={mobileStyles.topTitle}>
           <b>{treino.nome || 'Treino'}</b>
           <div style={mobileStyles.progressDots}>
-            {Array.from({ length: Math.min(Math.max(totalSeries, 4), 6) }, (_, i) => (
-              <span
-                key={i}
-                style={{
-                  ...mobileStyles.dot,
-                  background: i < feitas.length ? '#7C3AED' : '#334155',
-                }}
-              />
-            ))}
+            {Array.from(
+              { length: Math.min(Math.max(totalSeries, 4), 6) },
+              (_, i) => (
+                <span
+                  key={i}
+                  style={{
+                    ...mobileStyles.dot,
+                    background: i < feitas.length ? '#7C3AED' : '#334155',
+                  }}
+                />
+              )
+            )}
           </div>
         </div>
 
-        <button style={mobileStyles.moreButton}>•••</button>
+        {perfil?.tipo === 'professor' ? (
+          <button style={mobileStyles.headerDeleteButton} onClick={onExcluir} title="Excluir exercício">
+            🗑️
+          </button>
+        ) : (
+          <button style={mobileStyles.moreButton}>•••</button>
+        )}
       </div>
 
-      <div style={mobileStyles.heroCard}>
-        <div style={mobileStyles.exerciseIcon}>🏋️</div>
+      <div style={mobileStyles.heroCardCompact}>
+        <div style={mobileStyles.exerciseIconSmall}>🏋️</div>
 
         <div style={{ flex: 1 }}>
-          <h2 style={mobileStyles.exerciseName}>{ex.nome || 'Exercício sem nome'}</h2>
+          <h2 style={mobileStyles.exerciseNameCompact}>
+            {ex.nome || 'Exercício sem nome'}
+          </h2>
           <p style={mobileStyles.exerciseSub}>
-            {ex.cargaSugerida ? `Carga sugerida: ${ex.cargaSugerida}` : 'Execução do exercício'}
+            {ex.cargaSugerida
+              ? `Carga sugerida: ${ex.cargaSugerida}`
+              : 'Execução do exercício'}
           </p>
 
           <div style={mobileStyles.chipsRow}>
             <span style={mobileStyles.chip}>▰ {ex.series || '-'} séries</span>
             <span style={mobileStyles.chip}>↻ {ex.repeticoes || '-'} reps</span>
-            <span style={mobileStyles.chip}>◷ {ex.descanso || '-'}s descanso</span>
-            <span style={mobileStyles.chip}>⚗ Método: {ex.metodo || '-'}</span>
+            <span style={mobileStyles.chip}>◷ {ex.descanso || '-'}s</span>
+            {ex.metodo && <span style={mobileStyles.chip}>⚗ {ex.metodo}</span>}
           </div>
         </div>
-
-        <button style={mobileStyles.bookmarkButton}>♡</button>
       </div>
 
-      <div style={mobileStyles.videoCard}>
-        <PlayerVideoSeguro url={ex.video} nome={ex.nome} />
+      <div style={mobileStyles.exerciseTabsBar}>
+        {abaButton('execucao', 'Execução')}
+        {abaButton('detalhes', perfil?.tipo === 'professor' ? 'Editar' : 'Detalhes')}
+        {abaButton('historico', 'Histórico')}
+        {perfil?.tipo === 'aluno' && abaButton('feedback', 'Feedback')}
+      </div>
 
-        {(perfil?.tipo === 'aluno' || perfil?.tipo === 'professor') && (
-          <div style={mobileStyles.videoInputBox}>
-            <input
-              style={mobileStyles.videoInput}
-              placeholder="Cole o link do vídeo deste exercício"
-              value={ex.video || ''}
-              onChange={(e) => onAtualizar('video', e.target.value)}
-            />
+      {abaExercicio === 'execucao' && (
+        <div style={mobileStyles.tabPanel}>
+          <div style={mobileStyles.videoCardCompact}>
+            <PlayerVideoSeguro url={ex.video} nome={ex.nome} />
+
+            {(perfil?.tipo === 'aluno' || perfil?.tipo === 'professor') && (
+              <div style={mobileStyles.videoInputBox}>
+                <input
+                  style={mobileStyles.videoInput}
+                  placeholder="Cole o link do vídeo deste exercício"
+                  value={ex.video || ''}
+                  onChange={(e) => onAtualizar('video', e.target.value)}
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div style={mobileStyles.sectionHeader}>
-        <h3 style={{ margin: 0 }}>Séries</h3>
-        <button style={mobileStyles.historyButton}>↗ Ver histórico</button>
-      </div>
+          {perfil?.tipo === 'aluno' && (
+            <>
+              <div style={mobileStyles.sectionHeader}>
+                <h3 style={{ margin: 0 }}>Séries</h3>
+                <b style={{ color: '#A855F7' }}>{feitas.length}/{totalSeries || 0}</b>
+              </div>
 
-      <div style={mobileStyles.seriesGrid}>
-        {Array.from({ length: totalSeries || 1 }, (_, i) => {
-          const serie = i + 1;
-          const concluida = feitas.includes(serie);
-          const emAndamento = !concluida && serie === proximaSerie;
+              <div style={mobileStyles.seriesGridCompact}>
+                {Array.from({ length: totalSeries || 1 }, (_, i) => {
+                  const serie = i + 1;
+                  const concluida = feitas.includes(serie);
+                  const emAndamento = !concluida && serie === proximaSerie;
 
-          return (
-            <button
-              key={serie}
-              style={{
-                ...mobileStyles.serieCard,
-                ...(concluida ? mobileStyles.serieDone : {}),
-                ...(emAndamento ? mobileStyles.serieActive : {}),
-              }}
-              onClick={() => onMarcarSerie(serie)}
-            >
-              <span
-                style={{
-                  ...mobileStyles.serieIcon,
-                  background: concluida
-                    ? '#22C55E'
-                    : emAndamento
-                    ? '#7C3AED'
-                    : '#334155',
-                }}
-              >
-                {concluida ? '✓' : emAndamento ? '▶' : serie}
-              </span>
+                  return (
+                    <button
+                      key={serie}
+                      style={{
+                        ...mobileStyles.serieCardCompact,
+                        ...(concluida ? mobileStyles.serieDone : {}),
+                        ...(emAndamento ? mobileStyles.serieActive : {}),
+                      }}
+                      onClick={() => onMarcarSerie(serie)}
+                    >
+                      <span
+                        style={{
+                          ...mobileStyles.serieIconSmall,
+                          background: concluida
+                            ? '#22C55E'
+                            : emAndamento
+                            ? '#7C3AED'
+                            : '#334155',
+                        }}
+                      >
+                        {concluida ? '✓' : emAndamento ? '▶' : serie}
+                      </span>
 
-              <b>Série {serie}</b>
-              <small>{ex.repeticoes || '-'} reps</small>
-              <small
-                style={{
-                  color: concluida ? '#22C55E' : emAndamento ? '#A855F7' : '#CBD5E1',
-                }}
-              >
-                {concluida ? '✓ Concluída' : emAndamento ? 'Em andamento' : 'Pendente'}
-              </small>
-            </button>
-          );
-        })}
-      </div>
+                      <b>Série {serie}</b>
+                      <small>{ex.repeticoes || '-'} reps</small>
+                    </button>
+                  );
+                })}
+              </div>
 
-      <div style={mobileStyles.timerCard}>
-        <div style={mobileStyles.timerTop}>
-          <b style={{ color: '#A855F7' }}>SÉRIE {proximaSerie || 1}</b>
-          <span>
-            Descanso: {descanso || '-'}s ✎
-          </span>
-        </div>
+              <div style={mobileStyles.timerCardCompact}>
+                <div>
+                  <b style={{ color: '#A855F7' }}>Descanso</b>
+                  <p style={{ margin: '4px 0 0', color: '#CBD5E1' }}>{timerDesteExercicio ? 'Descansando agora' : 'Pronto para a próxima série'}</p>
+                </div>
 
-        <div style={mobileStyles.timerCircle}>
-          <div
-            style={{
-              ...mobileStyles.timerRing,
-              background: `conic-gradient(#7C3AED ${timerDesteExercicio ? 65 : 0}%, #1E293B 0%)`,
-            }}
-          >
-            <div style={mobileStyles.timerInner}>
-              <strong>{formatarTempo(Number(tempoParaMostrar) || 0)}</strong>
-              <span>{timerDesteExercicio ? 'Descansando' : 'Pronto'}</span>
+                <div style={mobileStyles.timerCompactRight}>
+                  <strong>{formatarTempo(Number(tempoParaMostrar) || 0)}</strong>
+                  <button style={mobileStyles.skipButton} onClick={onFecharTimer}>Pular</button>
+                </div>
+              </div>
+
+              <details style={mobileStyles.dropCard} open>
+                <summary style={mobileStyles.dropSummary}>
+                  <span>🏋️ Carga utilizada</span>
+                  <span>›</span>
+                </summary>
+
+                <input
+                  style={mobileStyles.inputMobile}
+                  placeholder="Ex.: 60 kg"
+                  value={ex.cargaAtual || ''}
+                  onChange={(e) => onAtualizar('cargaAtual', e.target.value)}
+                />
+              </details>
+
+              <button style={mobileStyles.finishButton} onClick={onFinalizar}>
+                ✓ Finalizar exercício
+              </button>
+            </>
+          )}
+
+          {perfil?.tipo === 'professor' && (
+            <div style={mobileStyles.professorQuickActions}>
+              <button style={mobileStyles.saveModelButton} onClick={onSalvarBiblioteca}>
+                💾 Enviar para biblioteca
+              </button>
+              <button style={mobileStyles.deleteButton} onClick={onExcluir}>
+                🗑️ Remover do treino
+              </button>
             </div>
-          </div>
-
-          <button style={mobileStyles.pauseButton}>
-            {timerDesteExercicio ? 'Ⅱ' : '▶'}
-          </button>
+          )}
         </div>
-
-        <div style={mobileStyles.timerActions}>
-          <span>🔊 Som do timer</span>
-          <button style={mobileStyles.skipButton} onClick={onFecharTimer}>
-            Pular descanso ▷
-          </button>
-        </div>
-      </div>
-
-      <details style={mobileStyles.dropCard}>
-        <summary style={mobileStyles.dropSummary}>
-          <span>🏋️ Carga utilizada</span>
-          <span>›</span>
-        </summary>
-
-        <input
-          style={mobileStyles.inputMobile}
-          placeholder="Ex.: 60 kg"
-          value={ex.cargaAtual || ''}
-          disabled={perfil?.tipo !== 'aluno'}
-          onChange={(e) => onAtualizar('cargaAtual', e.target.value)}
-        />
-      </details>
-
-      <details style={mobileStyles.dropCard}>
-        <summary style={mobileStyles.dropSummary}>
-          <span>📋 Observações</span>
-          <span>›</span>
-        </summary>
-
-        <textarea
-          style={mobileStyles.textareaMobile}
-          placeholder="Como foi a execução?"
-          value={perfil?.tipo === 'aluno' ? ex.obsAluno || '' : ex.obsProfessor || ''}
-          onChange={(e) =>
-            onAtualizar(
-              perfil?.tipo === 'aluno' ? 'obsAluno' : 'obsProfessor',
-              e.target.value
-            )
-          }
-        />
-      </details>
-
-      {perfil?.tipo === 'professor' && (
-        <details style={mobileStyles.dropCard}>
-          <summary style={mobileStyles.dropSummary}>
-            <span>✏️ Editar exercício</span>
-            <span>›</span>
-          </summary>
-
-          <input
-            style={mobileStyles.inputMobile}
-            placeholder="Nome"
-            value={ex.nome || ''}
-            onChange={(e) => onAtualizar('nome', e.target.value)}
-          />
-
-          <input
-            style={mobileStyles.inputMobile}
-            placeholder="Séries"
-            value={ex.series || ''}
-            onChange={(e) => onAtualizar('series', e.target.value)}
-          />
-
-          <input
-            style={mobileStyles.inputMobile}
-            placeholder="Repetições"
-            value={ex.repeticoes || ''}
-            onChange={(e) => onAtualizar('repeticoes', e.target.value)}
-          />
-
-          <input
-            style={mobileStyles.inputMobile}
-            placeholder="Descanso em segundos"
-            value={ex.descanso || ''}
-            onChange={(e) => onAtualizar('descanso', e.target.value)}
-          />
-
-          <input
-            style={mobileStyles.inputMobile}
-            placeholder="Método"
-            value={ex.metodo || ''}
-            onChange={(e) => onAtualizar('metodo', e.target.value)}
-          />
-
-          <button style={mobileStyles.secondaryButton} onClick={onSalvarModelo}>
-            Salvar como modelo
-          </button>
-
-          <button style={mobileStyles.deleteButton} onClick={onExcluir}>
-            Excluir exercício
-          </button>
-        </details>
       )}
 
-      <button style={mobileStyles.finishButton} onClick={onFinalizar}>
-        ✓ Finalizar exercício
-      </button>
+      {abaExercicio === 'detalhes' && (
+        <div style={mobileStyles.tabPanel}>
+          {perfil?.tipo === 'professor' ? (
+            <div style={mobileStyles.editGrid}>
+              <input style={mobileStyles.inputMobile} placeholder="Nome" value={ex.nome || ''} onChange={(e) => onAtualizar('nome', e.target.value)} />
+              <input style={mobileStyles.inputMobile} placeholder="Séries" value={ex.series || ''} onChange={(e) => onAtualizar('series', e.target.value)} />
+              <input style={mobileStyles.inputMobile} placeholder="Repetições" value={ex.repeticoes || ''} onChange={(e) => onAtualizar('repeticoes', e.target.value)} />
+              <input style={mobileStyles.inputMobile} placeholder="Descanso em segundos" value={ex.descanso || ''} onChange={(e) => onAtualizar('descanso', e.target.value)} />
+              <input style={mobileStyles.inputMobile} placeholder="Carga sugerida" value={ex.cargaSugerida || ''} onChange={(e) => onAtualizar('cargaSugerida', e.target.value)} />
+              <input style={mobileStyles.inputMobile} placeholder="Método" value={ex.metodo || ''} onChange={(e) => onAtualizar('metodo', e.target.value)} />
+              <input style={mobileStyles.inputMobile} placeholder="Velocidade" value={ex.velocidade || ''} onChange={(e) => onAtualizar('velocidade', e.target.value)} />
+              <textarea style={mobileStyles.textareaMobile} placeholder="Observação do professor" value={ex.obsProfessor || ''} onChange={(e) => onAtualizar('obsProfessor', e.target.value)} />
+
+              <div style={mobileStyles.professorQuickActions}>
+                <button style={mobileStyles.saveModelButton} onClick={onSalvarBiblioteca}>💾 Salvar na biblioteca</button>
+                <button style={mobileStyles.deleteButton} onClick={onExcluir}>🗑️ Excluir do treino</button>
+              </div>
+            </div>
+          ) : (
+            <div style={mobileStyles.detailList}>
+              <InfoLinha titulo="Método" valor={ex.metodo || '-'} />
+              <InfoLinha titulo="Velocidade" valor={ex.velocidade || '-'} />
+              <InfoLinha titulo="Descanso" valor={`${ex.descanso || '-'}s`} />
+              <InfoLinha titulo="Observação do professor" valor={ex.obsProfessor || '-'} />
+
+              <details style={mobileStyles.dropCard}>
+                <summary style={mobileStyles.dropSummary}>
+                  <span>📋 Minha observação</span>
+                  <span>›</span>
+                </summary>
+                <textarea
+                  style={mobileStyles.textareaMobile}
+                  placeholder="Como foi a execução?"
+                  value={ex.obsAluno || ''}
+                  onChange={(e) => onAtualizar('obsAluno', e.target.value)}
+                />
+              </details>
+            </div>
+          )}
+        </div>
+      )}
+
+      {abaExercicio === 'historico' && (
+        <div style={mobileStyles.tabPanel}>
+          <h3 style={{ marginTop: 0 }}>Histórico</h3>
+          {(ex.historicoCargas || []).length === 0 && (
+            <p style={mobileStyles.textSoft}>Nenhuma carga registrada ainda.</p>
+          )}
+
+          {(ex.historicoCargas || []).slice().reverse().map((item: any, index: number) => (
+            <div key={index} style={mobileStyles.historyLine}>
+              <b>{item.carga}</b>
+              <small>{item.data}</small>
+            </div>
+          ))}
+
+          {(ex.feedbackDificuldade || ex.feedbackEnergia || ex.feedbackDor || ex.feedbackComentario) && (
+            <div style={mobileStyles.feedbackSummary}>
+              <h3>Último feedback</h3>
+              <p>Dificuldade: <b>{ex.feedbackDificuldade || '-'}</b></p>
+              <p>Energia: <b>{ex.feedbackEnergia || '-'}</b></p>
+              <p>Dor/desconforto: <b>{ex.feedbackDor || '-'}</b></p>
+              {ex.feedbackComentario && <p>{ex.feedbackComentario}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {perfil?.tipo === 'aluno' && abaExercicio === 'feedback' && (
+        <div style={mobileStyles.tabPanel}>
+          <h3 style={{ marginTop: 0 }}>Feedback pós-treino</h3>
+          <p style={mobileStyles.textSoft}>Marque como foi esse exercício para o professor acompanhar sua evolução.</p>
+
+          <FeedbackGrupo
+            titulo="Dificuldade"
+            valor={ex.feedbackDificuldade || ''}
+            opcoes={[
+              ['facil', '😊 Fácil'],
+              ['medio', '😐 Médio'],
+              ['dificil', '🔥 Difícil'],
+            ]}
+            onChange={(valor: string) => onAtualizar('feedbackDificuldade', valor)}
+          />
+
+          <FeedbackGrupo
+            titulo="Energia"
+            valor={ex.feedbackEnergia || ''}
+            opcoes={[
+              ['baixa', '🔋 Baixa'],
+              ['normal', '⚡ Normal'],
+              ['alta', '🚀 Alta'],
+            ]}
+            onChange={(valor: string) => onAtualizar('feedbackEnergia', valor)}
+          />
+
+          <FeedbackGrupo
+            titulo="Dor ou desconforto"
+            valor={ex.feedbackDor || ''}
+            opcoes={[
+              ['nao', '✅ Não'],
+              ['sim', '⚠️ Sim'],
+            ]}
+            onChange={(valor: string) => onAtualizar('feedbackDor', valor)}
+          />
+
+          <textarea
+            style={mobileStyles.textareaMobile}
+            placeholder="Comentário para o professor"
+            value={ex.feedbackComentario || ''}
+            onChange={(e) => onAtualizar('feedbackComentario', e.target.value)}
+          />
+
+          <button style={mobileStyles.finishButton} onClick={onFinalizar}>
+            ✓ Finalizar e salvar feedback
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
+function InfoLinha({ titulo, valor }: any) {
+  return (
+    <div style={mobileStyles.infoLine}>
+      <small>{titulo}</small>
+      <b>{valor}</b>
+    </div>
+  );
+}
 
-
+function FeedbackGrupo({ titulo, valor, opcoes, onChange }: any) {
+  return (
+    <div style={mobileStyles.feedbackGroup}>
+      <b>{titulo}</b>
+      <div style={mobileStyles.feedbackOptions}>
+        {opcoes.map(([id, label]: any) => (
+          <button
+            key={id}
+            style={valor === id ? mobileStyles.feedbackOptionActive : mobileStyles.feedbackOption}
+            onClick={() => onChange(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function PlayerVideoSeguro({ url, nome }: { url: string; nome: string }) {
   const original = String(url || '').trim();
@@ -3055,7 +4117,6 @@ function PlayerVideoSeguro({ url, nome }: { url: string; nome: string }) {
   );
 }
 
-
 const mobileStyles: any = {
   screenCard: {
     background: 'linear-gradient(180deg,#0B1020 0%, #111827 100%)',
@@ -3105,7 +4166,7 @@ const mobileStyles: any = {
     cursor: 'pointer',
   },
   heroCard: {
-    background: 'linear-gradient(135deg,#111827,#0F172A)',
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
     border: '1px solid #1F2937',
     borderRadius: 26,
     padding: 18,
@@ -3128,6 +4189,9 @@ const mobileStyles: any = {
     margin: '0 0 6px',
     fontSize: 28,
     lineHeight: 1.05,
+    color: '#FFFFFF',
+    fontWeight: 900,
+    textShadow: '0 0 14px rgba(124,58,237,0.38)',
   },
   exerciseSub: {
     margin: '0 0 14px',
@@ -3371,16 +4435,15 @@ const mobileStyles: any = {
     boxShadow: '0 0 24px rgba(124,58,237,.35)',
     cursor: 'pointer',
   },
-  secondaryButton: {
+  saveModelButton: {
     width: '100%',
-    border: '1px solid #334155',
+    border: 'none',
     borderRadius: 14,
     padding: '14px 16px',
     color: 'white',
     fontWeight: 800,
-    background: '#1E293B',
+    background: 'linear-gradient(135deg,#16A34A,#22C55E)',
     marginTop: 10,
-    cursor: 'pointer',
   },
   deleteButton: {
     width: '100%',
@@ -3391,7 +4454,6 @@ const mobileStyles: any = {
     fontWeight: 800,
     background: 'linear-gradient(135deg,#DC2626,#EF4444)',
     marginTop: 10,
-    cursor: 'pointer',
   },
   exerciseMini: {
     background: 'linear-gradient(135deg,#111827,#0B1020)',
@@ -3430,9 +4492,271 @@ const mobileStyles: any = {
     border: '1px solid #64748B',
   },
   textSoft: {
-    color: '#94A3B8',
+    color: '#CBD5E1',
     display: 'block',
     marginTop: 3,
+  },
+
+  exerciseMiniPremium: {
+    background: 'linear-gradient(135deg,#111827,#0B1020)',
+    border: '1px solid #253047',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    color: 'white',
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    alignItems: 'center',
+    gap: 12,
+    cursor: 'pointer',
+    boxShadow: '0 10px 24px rgba(0,0,0,.18)',
+  },
+  miniTitle: {
+    display: 'block',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: 360,
+  },
+  miniActions: {
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  miniLibraryButton: {
+    border: '1px solid rgba(34,197,94,.45)',
+    background: 'linear-gradient(135deg,rgba(22,163,74,.95),rgba(34,197,94,.82))',
+    color: 'white',
+    borderRadius: 12,
+    padding: '10px 12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  miniDeleteButton: {
+    border: '1px solid rgba(239,68,68,.45)',
+    background: 'linear-gradient(135deg,rgba(220,38,38,.95),rgba(239,68,68,.82))',
+    color: 'white',
+    borderRadius: 12,
+    padding: '10px 12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  miniOpenButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    border: '1px solid #7C3AED',
+    background: 'rgba(124,58,237,.18)',
+    color: '#C4B5FD',
+    fontSize: 22,
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  miniProgressBox: {
+    minWidth: 62,
+    textAlign: 'center',
+    border: '1px solid #334155',
+    borderRadius: 14,
+    padding: '8px 10px',
+    background: 'rgba(15,23,42,.9)',
+  },
+  headerDeleteButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    border: '1px solid rgba(239,68,68,.45)',
+    background: 'rgba(220,38,38,.15)',
+    color: 'white',
+    cursor: 'pointer',
+  },
+  heroCardCompact: {
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
+    border: '1px solid #1F2937',
+    borderRadius: 22,
+    padding: 14,
+    display: 'flex',
+    gap: 14,
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  exerciseIconSmall: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    background: 'linear-gradient(135deg,#7C3AED,#4C1D95)',
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 26,
+    flexShrink: 0,
+  },
+  exerciseNameCompact: {
+    margin: '0 0 4px',
+    fontSize: 24,
+    lineHeight: 1.05,
+    color: '#FFFFFF',
+    fontWeight: 900,
+    textShadow: '0 0 14px rgba(124,58,237,0.35)',
+  },
+  exerciseTabsBar: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))',
+    gap: 8,
+    marginBottom: 14,
+    background: 'rgba(2,6,23,.45)',
+    border: '1px solid #1F2937',
+    borderRadius: 18,
+    padding: 8,
+  },
+  exerciseTab: {
+    border: '1px solid #334155',
+    background: '#111827',
+    color: '#CBD5E1',
+    borderRadius: 14,
+    padding: '11px 12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  exerciseTabActive: {
+    border: '1px solid #A855F7',
+    background: 'linear-gradient(135deg,#7C3AED,#9333EA)',
+    color: 'white',
+    borderRadius: 14,
+    padding: '11px 12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+    boxShadow: '0 0 18px rgba(124,58,237,.3)',
+  },
+  tabPanel: {
+    background: 'rgba(15,23,42,.42)',
+    border: '1px solid #1F2937',
+    borderRadius: 22,
+    padding: 14,
+  },
+  videoCardCompact: {
+    position: 'relative',
+    background: '#050816',
+    border: '1px solid #263244',
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  seriesGridCompact: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))',
+    gap: 10,
+    marginBottom: 14,
+  },
+  serieCardCompact: {
+    background: '#111827',
+    border: '1px solid #334155',
+    color: 'white',
+    borderRadius: 18,
+    minHeight: 105,
+    padding: 12,
+    display: 'grid',
+    gap: 5,
+    placeItems: 'center',
+    cursor: 'pointer',
+  },
+  serieIconSmall: {
+    width: 38,
+    height: 38,
+    borderRadius: '50%',
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 15,
+    fontWeight: 900,
+  },
+  timerCardCompact: {
+    background: 'linear-gradient(135deg,#111827,#0B1020)',
+    border: '1px solid #263244',
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 14,
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+  },
+  timerCompactRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    color: 'white',
+  },
+  professorQuickActions: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
+    gap: 10,
+    marginTop: 10,
+  },
+  editGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
+    gap: 10,
+  },
+  detailList: {
+    display: 'grid',
+    gap: 10,
+  },
+  infoLine: {
+    background: '#0B1020',
+    border: '1px solid #263244',
+    borderRadius: 16,
+    padding: 12,
+    display: 'grid',
+    gap: 5,
+  },
+  historyLine: {
+    background: '#0B1020',
+    border: '1px solid #263244',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  feedbackSummary: {
+    background: 'rgba(124,58,237,.14)',
+    border: '1px solid rgba(168,85,247,.35)',
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 14,
+  },
+  feedbackGroup: {
+    background: '#0B1020',
+    border: '1px solid #263244',
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 12,
+  },
+  feedbackOptions: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))',
+    gap: 8,
+    marginTop: 10,
+  },
+  feedbackOption: {
+    border: '1px solid #334155',
+    background: '#111827',
+    color: '#CBD5E1',
+    borderRadius: 14,
+    padding: '12px 10px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  feedbackOptionActive: {
+    border: '1px solid #A855F7',
+    background: 'linear-gradient(135deg,#7C3AED,#9333EA)',
+    color: 'white',
+    borderRadius: 14,
+    padding: '12px 10px',
+    fontWeight: 900,
+    cursor: 'pointer',
   },
 };
 
@@ -3466,12 +4790,16 @@ function normalizarUrlVideo(url: string) {
 
       id = id.split('?')[0].split('&')[0].split('/')[0];
 
-      return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1` : '';
+      return id
+        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
+        : '';
     }
 
     if (host === 'youtu.be') {
       const id = u.pathname.replace('/', '').split('?')[0].split('&')[0];
-      return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1` : '';
+      return id
+        ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
+        : '';
     }
 
     if (host === 'vimeo.com' || host === 'player.vimeo.com') {
@@ -3487,7 +4815,10 @@ function normalizarUrlVideo(url: string) {
 
 function MenuItem({ label, icon, ativo, onClick }: any) {
   return (
-    <button style={ativo ? styles.sideMenuItemActive : styles.sideMenuItem} onClick={onClick}>
+    <button
+      style={ativo ? styles.sideMenuItemActive : styles.sideMenuItem}
+      onClick={onClick}
+    >
       <span>{icon}</span>
       <b>{label}</b>
     </button>
@@ -3652,20 +4983,62 @@ function DashboardAluno({
               atualizar={atualizarAvaliacao}
             />
             <CampoAvaliacao
+              label="Abdômen cm"
+              campo="abdomen"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
               label="Tórax cm"
               campo="torax"
               draft={avaliacaoDraft}
               atualizar={atualizarAvaliacao}
             />
             <CampoAvaliacao
-              label="Braço cm"
-              campo="braco"
+              label="Braço direito cm"
+              campo="bracoDireito"
               draft={avaliacaoDraft}
               atualizar={atualizarAvaliacao}
             />
             <CampoAvaliacao
-              label="Coxa cm"
-              campo="coxa"
+              label="Braço esquerdo cm"
+              campo="bracoEsquerdo"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
+              label="Antebraço direito cm"
+              campo="antebracoDireito"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
+              label="Antebraço esquerdo cm"
+              campo="antebracoEsquerdo"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
+              label="Coxa direita cm"
+              campo="coxaDireita"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
+              label="Coxa esquerda cm"
+              campo="coxaEsquerda"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
+              label="Panturrilha direita cm"
+              campo="panturrilhaDireita"
+              draft={avaliacaoDraft}
+              atualizar={atualizarAvaliacao}
+            />
+            <CampoAvaliacao
+              label="Panturrilha esquerda cm"
+              campo="panturrilhaEsquerda"
               draft={avaliacaoDraft}
               atualizar={atualizarAvaliacao}
             />
@@ -3859,14 +5232,14 @@ function MiniGrafico({ titulo, dados, campo, sufixo }: any) {
       <svg width="280" height="105" viewBox="0 0 280 105">
         <polyline
           fill="none"
-          stroke="#2563eb"
+          stroke="#7C3AED"
           strokeWidth="4"
           points={coords}
         />
         {valores.map((p, i) => {
           const x = (i / (valores.length - 1)) * 260;
           const y = 90 - ((p.valor - min) / range) * 75;
-          return <circle key={i} cx={x} cy={y} r="4" fill="#16a34a" />;
+          return <circle key={i} cx={x} cy={y} r="4" fill="#22C55E" />;
         })}
       </svg>
       <small>
@@ -3898,21 +5271,21 @@ const styles: any = {
     flexWrap: 'wrap',
   },
   card: {
-    background: '#111827',
+    background: 'linear-gradient(135deg,#182235,#101827)',
     borderRadius: 24,
     padding: 24,
     marginBottom: 24,
-    border: '1px solid #243041',
-    boxShadow: '0 0 20px rgba(124,58,237,0.15)',
+    border: '1px solid #3B4A63',
+    boxShadow: '0 0 28px rgba(124,58,237,0.28)',
     color: 'white',
   },
   cardCompacto: {
-    background: '#111827',
+    background: 'linear-gradient(135deg,#182235,#101827)',
     borderRadius: 24,
     padding: 24,
     maxWidth: 500,
     margin: '40px auto',
-    border: '1px solid #243041',
+    border: '1px solid #3B4A63',
     color: 'white',
   },
   grid2: {
@@ -3922,9 +5295,9 @@ const styles: any = {
   },
   treinoTabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 15 },
   tab: {
-    background: '#111827',
-    border: '1px solid #243041',
-    color: '#CBD5E1',
+    background: '#182235',
+    border: '1px solid #3B4A63',
+    color: '#E5E7EB',
     borderRadius: 14,
     padding: '12px 18px',
     fontWeight: 700,
@@ -3951,8 +5324,8 @@ const styles: any = {
     flexWrap: 'wrap',
   },
   exercise: {
-    background: '#111827',
-    border: '1px solid #243041',
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
+    border: '1px solid #3B4A63',
     borderRadius: 22,
     padding: 20,
     marginBottom: 20,
@@ -3965,51 +5338,21 @@ const styles: any = {
     alignItems: 'center',
     gap: 10,
   },
-  modelosBox: {
-    marginTop: 18,
-    marginBottom: 18,
-    padding: 16,
-    borderRadius: 18,
-    background: '#0F172A',
-    border: '1px solid #334155',
-    color: 'white',
-  },
-  modelosHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  modelosGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
-    gap: 12,
-  },
-  modeloCard: {
-    display: 'grid',
-    gap: 8,
-    padding: 14,
-    borderRadius: 16,
-    background: '#1E293B',
-    border: '1px solid #334155',
-  },
   exerciseTitleButton: {
     border: 'none',
     background: 'transparent',
     cursor: 'pointer',
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#F8FAFC',
     textAlign: 'left',
   },
   input: {
     width: '100%',
     padding: '14px 16px',
     borderRadius: 14,
-    border: '1px solid #243041',
-    background: '#111827',
+    border: '1px solid #3B4A63',
+    background: '#0F172A',
     color: 'white',
     outline: 'none',
     fontSize: 15,
@@ -4035,9 +5378,9 @@ const styles: any = {
     boxShadow: '0 0 16px rgba(124,58,237,0.35)',
   },
   secondary: {
-    background: '#1E293B',
+    background: '#243041',
     color: 'white',
-    border: '1px solid #334155',
+    border: '1px solid #475569',
     borderRadius: 12,
     padding: '12px 16px',
     fontWeight: 700,
@@ -4067,7 +5410,9 @@ const styles: any = {
   messages: {
     marginTop: 20,
     padding: 15,
-    background: '#f1f5f9',
+    background: 'linear-gradient(135deg,#111827,#182235)',
+    border: '1px solid #334155',
+    color: 'white',
     borderRadius: 12,
   },
   progressBg: {
@@ -4085,8 +5430,8 @@ const styles: any = {
   },
   ok: {
     padding: 10,
-    background: '#dcfce7',
-    color: '#166534',
+    background: 'linear-gradient(135deg,#14532D,#16A34A)',
+    color: 'white',
     borderRadius: 10,
     fontWeight: 'bold',
   },
@@ -4104,13 +5449,15 @@ const styles: any = {
   chartBox: {
     marginTop: 12,
     padding: 12,
-    background: 'white',
+    background: '#182235',
+    color: 'white',
     borderRadius: 12,
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
   },
   alunoSelecionadoBox: {
     padding: 12,
-    background: '#dbeafe',
+    background: 'linear-gradient(135deg,#1E293B,#182235)',
+    color: 'white',
     border: '1px solid #2563eb',
     borderRadius: 12,
     marginTop: 10,
@@ -4127,8 +5474,9 @@ const styles: any = {
     gap: 14,
   },
   alunoCardGerenciar: {
-    background: '#f8fafc',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 15,
     marginTop: 10,
@@ -4146,10 +5494,10 @@ const styles: any = {
     height: 55,
     borderRadius: '50%',
     objectFit: 'cover',
-    border: '2px solid #2563eb',
+    border: '2px solid #7C3AED',
   },
   contatoBox: {
-    background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+    background: 'linear-gradient(135deg,#182235,#243041)',
     border: '1px solid #93c5fd',
     borderRadius: 14,
     padding: '10px 14px',
@@ -4166,18 +5514,19 @@ const styles: any = {
     marginTop: 6,
   },
   contatoWhatsapp: {
-    color: '#16a34a',
+    color: '#22C55E',
     textDecoration: 'none',
     fontWeight: 700,
   },
   contatoEmail: {
-    color: '#2563eb',
+    color: '#60A5FA',
     textDecoration: 'none',
     fontWeight: 700,
   },
   configBox: {
-    background: '#f8fafc',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 15,
     marginBottom: 18,
@@ -4186,7 +5535,7 @@ const styles: any = {
     marginTop: 18,
     padding: 16,
     borderRadius: 16,
-    background: 'linear-gradient(135deg,#eff6ff,#f8fafc)',
+    background: 'linear-gradient(135deg,#111827,#182235)',
     border: '1px solid #bfdbfe',
   },
   kpiGrid: {
@@ -4196,8 +5545,9 @@ const styles: any = {
     marginBottom: 14,
   },
   kpiCard: {
-    background: 'white',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 12,
     display: 'flex',
@@ -4212,8 +5562,9 @@ const styles: any = {
     marginTop: 14,
   },
   panel: {
-    background: 'white',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 14,
   },
@@ -4223,10 +5574,11 @@ const styles: any = {
     gap: 10,
   },
   timelineItem: {
-    borderLeft: '4px solid #2563eb',
+    borderLeft: '4px solid #7C3AED',
     padding: '8px 10px',
     marginBottom: 10,
-    background: '#f8fafc',
+    background: '#182235',
+    color: 'white',
     borderRadius: 10,
   },
   avaliacaoLinha: {
@@ -4235,18 +5587,20 @@ const styles: any = {
     gap: 10,
     alignItems: 'center',
     flexWrap: 'wrap',
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
     borderRadius: 12,
     padding: 10,
     marginTop: 8,
-    background: '#f8fafc',
+    background: '#182235',
+    color: 'white',
   },
   graficoCard: {
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
     borderRadius: 12,
     padding: 10,
     marginTop: 10,
-    background: '#f8fafc',
+    background: '#182235',
+    color: 'white',
   },
 
   professorAdminCard: {
@@ -4255,8 +5609,9 @@ const styles: any = {
     gap: 12,
     alignItems: 'flex-start',
     flexWrap: 'wrap',
-    background: '#f8fafc',
-    border: '1px solid #cbd5e1',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
     borderRadius: 14,
     padding: 14,
     marginTop: 10,
@@ -4267,10 +5622,11 @@ const styles: any = {
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    border: '1px solid #cbd5e1',
+    border: '1px solid #3B4A63',
     borderRadius: 12,
     marginTop: 8,
-    background: 'white',
+    background: '#182235',
+    color: 'white',
   },
   inputLine: {
     display: 'flex',
@@ -4282,15 +5638,16 @@ const styles: any = {
     marginTop: 10,
     padding: 10,
     borderRadius: 12,
-    background: 'white',
-    border: '1px solid #e2e8f0',
+    background: '#182235',
+    color: 'white',
+    border: '1px solid #3B4A63',
   },
   adminAlunoLinha: {
     display: 'flex',
     justifyContent: 'space-between',
     gap: 10,
     padding: 8,
-    borderBottom: '1px solid #e2e8f0',
+    borderBottom: '1px solid #3B4A63',
   },
   fotoPreview: {
     width: 90,
@@ -4319,7 +5676,7 @@ const styles: any = {
   },
   mobileNavItem: {
     background: 'transparent',
-    color: '#94A3B8',
+    color: '#CBD5E1',
     border: 'none',
     borderRadius: 16,
     padding: '8px 4px',
@@ -4351,7 +5708,7 @@ const styles: any = {
     paddingBottom: 90,
   },
   mobileHero: {
-    background: 'linear-gradient(135deg,#111827,#172033)',
+    background: 'linear-gradient(135deg,#182235,#243041)',
     border: '1px solid #243041',
     borderRadius: 28,
     padding: 20,
@@ -4370,7 +5727,7 @@ const styles: any = {
     border: '2px solid #7C3AED',
   },
   mobileMuted: {
-    color: '#94A3B8',
+    color: '#CBD5E1',
   },
   mobileStatsGrid: {
     display: 'grid',
@@ -4379,8 +5736,8 @@ const styles: any = {
     marginBottom: 16,
   },
   mobileStatCard: {
-    background: '#111827',
-    border: '1px solid #243041',
+    background: 'linear-gradient(135deg,#182235,#111827)',
+    border: '1px solid #3B4A63',
     borderRadius: 20,
     padding: 14,
     color: 'white',
@@ -4390,7 +5747,7 @@ const styles: any = {
     boxShadow: '0 0 16px rgba(124,58,237,.10)',
   },
   mobileWorkoutCard: {
-    background: 'linear-gradient(135deg,#111827,#0F172A)',
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
     border: '1px solid #243041',
     borderRadius: 26,
     padding: 18,
@@ -4463,14 +5820,14 @@ const styles: any = {
     width: 40,
     height: 40,
     borderRadius: 14,
-    border: '1px solid #243041',
-    background: '#111827',
+    border: '1px solid #3B4A63',
+    background: '#0F172A',
     color: 'white',
     fontSize: 28,
     cursor: 'pointer',
   },
   sideProfile: {
-    background: 'linear-gradient(135deg,#111827,#172033)',
+    background: 'linear-gradient(135deg,#182235,#243041)',
     border: '1px solid #243041',
     borderRadius: 22,
     padding: 14,
@@ -4527,7 +5884,8 @@ const styles: any = {
   sideMenuItemActive: {
     width: '100%',
     border: '1px solid #7C3AED',
-    background: 'linear-gradient(135deg,rgba(124,58,237,.45),rgba(147,51,234,.28))',
+    background:
+      'linear-gradient(135deg,rgba(124,58,237,.45),rgba(147,51,234,.28))',
     color: 'white',
     borderRadius: 16,
     padding: '14px 14px',
@@ -4551,18 +5909,132 @@ const styles: any = {
     cursor: 'pointer',
   },
   statsWorkoutLine: {
-    background: '#0B1020',
-    border: '1px solid #243041',
+    background: '#182235',
+    border: '1px solid #3B4A63',
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
   },
   messageCardPremium: {
-    background: '#0B1020',
-    border: '1px solid #243041',
+    background: '#182235',
+    border: '1px solid #3B4A63',
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
+  },
+
+  dietaCard: {
+    background: 'linear-gradient(135deg,#182235,#0F172A)',
+    border: '1px solid #243041',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 16,
+  },
+  refeicaoCard: {
+    background: '#0F172A',
+    border: '1px solid #243041',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+  refeicaoResumo: {
+    background: '#020617',
+    border: '1px solid #243041',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 10,
+  },
+
+
+  bibliotecaCompactBox: {
+    background: 'linear-gradient(135deg,#111827,#182235)',
+    border: '1px solid #3B4A63',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 18,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,.70)',
+    zIndex: 99999,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    backdropFilter: 'blur(6px)',
+  },
+  bibliotecaModal: {
+    width: 'min(620px, 94vw)',
+    height: '100vh',
+    background: 'linear-gradient(180deg,#070B14,#0F172A)',
+    borderLeft: '1px solid #3B4A63',
+    boxShadow: '-20px 0 60px rgba(0,0,0,.45)',
+    padding: 22,
+    color: 'white',
+    overflowY: 'auto',
+    boxSizing: 'border-box',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  modalCloseButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    border: '1px solid #3B4A63',
+    background: '#111827',
+    color: 'white',
+    fontSize: 28,
+    cursor: 'pointer',
+  },
+  bibliotecaListaCompacta: {
+    display: 'grid',
+    gap: 10,
+    marginTop: 12,
+  },
+  bibliotecaLinha: {
+    background: 'linear-gradient(135deg,#111827,#0B1020)',
+    border: '1px solid #253047',
+    borderRadius: 16,
+    padding: 14,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bibliotecaNomeLinha: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    display: 'block',
+    marginBottom: 4,
+  },
+  bibliotecaAcoesLinha: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  },
+  bibliotecaGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
+    gap: 12,
+    marginTop: 12,
+  },
+  exercicioBibliotecaCard: {
+    background: '#0F172A',
+    border: '1px solid #3B4A63',
+    borderRadius: 18,
+    padding: 14,
+    color: 'white',
   },
 
   videoBox: {
@@ -4593,5 +6065,5 @@ const styles: any = {
     margin: '14px 0',
     fontWeight: 800,
     textAlign: 'center',
-  }
+  },
 };
